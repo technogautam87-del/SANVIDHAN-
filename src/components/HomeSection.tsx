@@ -5,7 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { BookOpen, Award, Compass, HelpCircle, ArrowRight, Sparkles, Star } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   ResponsiveContainer,
   RadarChart,
@@ -28,6 +28,39 @@ interface HomeSectionProps {
 
 export default function HomeSection({ onNavigate, setMascotData }: HomeSectionProps) {
   const [chartType, setChartType] = useState<"radar" | "bar">("radar");
+
+  const assemblyQuotes = [
+    {
+      author: "डॉ. भीमराव आंबेडकर (Dr. B.R. Ambedkar)",
+      role: "संविधान निर्माता • प्रारूप समिति अध्यक्ष",
+      quote: "संविधान केवल एक कानूनी दस्तावेज़ नहीं है, यह तो एक युग-परिवर्तक जीवन मार्गदर्शक है। इसकी आत्मा हमेशा समाज और बच्चों की स्वतंत्रता, समानता और बंधुत्व की रक्षा करती है। 🌟",
+      bannerStyle: "from-orange-50 to-amber-50 border-orange-300 text-slate-850",
+      accentDot: "bg-amber-600"
+    },
+    {
+      author: "पंडित जवाहरलाल नेहरू (Jawaharlal Nehru)",
+      role: "राष्ट्र निर्माता • स्वतंत्र भारत के प्रथम प्रधानमंत्री",
+      quote: "संविधान सभा का यह पावन कार्य केवल नियमों को संजोना नहीं है, वरन् हमारे देश के प्रत्येक बालक और भावी पीढ़ी के लिए एक सुंदर, समृद्ध व समतावादी राष्ट्र का संकल्प है। 🌹",
+      bannerStyle: "from-rose-50 to-orange-50 border-rose-300 text-slate-850",
+      accentDot: "bg-rose-500"
+    },
+    {
+      author: "डॉ. राजेंद्र प्रसाद (Dr. Rajendra Prasad)",
+      role: "संविधान सभा के अध्यक्ष • प्रथम राष्ट्रपति",
+      quote: "यदि हमारे भावी कर्णधार बच्चे और जनप्रतिनिधि चरित्रवान, परोपकारी व सच्चे देशप्रेमी होंगे, तो यह संविधान सोने की कसौटी पर खड़ा उतरेगा और देश को नई ऊंचाइयों पर ले जाएगा। 🤝",
+      bannerStyle: "from-emerald-50 to-teal-50 border-emerald-300 text-slate-850",
+      accentDot: "bg-emerald-500"
+    }
+  ];
+
+  const [activeQuoteIndex, setActiveQuoteIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveQuoteIndex((prev) => (prev + 1) % assemblyQuotes.length);
+    }, 7000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setMascotData({
@@ -242,6 +275,101 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
         <p className="text-sm leading-relaxed text-slate-700 font-semibold">
           जैसे आपके स्कूल को चलाने के लिए कड़े नियम-कायदे होते हैं - जैसे प्रार्थना सभा का समय, यूनिफॉर्म, और परीक्षा के नियम—ठीक वैसे ही हमारे इतने बड़े देश <strong>'भारत'</strong> को सही ढंग से चलाने के लिए नियमों की एक महान पुस्तक है। इसी नियम-पुस्तिका को हम <strong>भारत का संविधान</strong> कहते हैं। यह यह भी पक्का करता है कि हर नागरिक खुश रहे, सुरक्षित रहे और पढ़े-लिखे!
         </p>
+      </div>
+
+      {/* 🏛️ CONSTITUENT ASSEMBLY QUOTES HISTORIC DISPLAY BOARD (भव्य ऐतिहासिक ऑटो-रोटेटिंग संग्रहालय बोर्ड) */}
+      <div className="bg-gradient-to-b from-yellow-50 to-amber-50/70 border-4 border-amber-500 rounded-[35px] p-6 md:p-8 shadow-md relative overflow-hidden text-left space-y-6">
+        {/* Fine gold frame accents */}
+        <div className="absolute inset-2 border-2 border-dashed border-amber-300/60 rounded-[28px] pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-200/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
+
+        {/* Board Title Frame */}
+        <div className="flex items-center gap-3 pb-4 border-b-2 border-amber-200 relative z-10">
+          <span className="text-3xl filter drop-shadow-sm select-none">🏛️📜</span>
+          <div>
+            <h3 className="text-lg md:text-xl font-black text-amber-950 uppercase tracking-wide">
+              संविधान सभा ऐतिहासिक विचार पीठ (Voice of the Founders)
+            </h3>
+            <span className="text-[10px] text-amber-800 font-extrabold block mt-1 uppercase tracking-widest">
+              महान देशनायकों के चरित्रवान और लोकतंत्र-प्रिय उत्कृष्ट संदेश (Auto-Rotating Board)
+            </span>
+          </div>
+        </div>
+
+        {/* Dynamic calligraphic quotes switcher */}
+        <div className="relative min-h-[170px] flex items-center justify-center py-2 z-10">
+          <AnimatePresence mode="wait">
+            {assemblyQuotes.map((q, idx) => {
+              if (idx !== activeQuoteIndex) return null;
+              return (
+                <motion.div
+                  key={q.author}
+                  initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: -10 }}
+                  transition={{ duration: 0.4 }}
+                  className={`w-full bg-gradient-to-r ${q.bannerStyle} p-6 md:p-8 rounded-2xl border-2 flex flex-col justify-between gap-4`}
+                >
+                  {/* Calligraphy Quote Content - No photo, bold letters */}
+                  <div className="relative">
+                    <span className="text-6xl text-amber-300 absolute -top-8 -left-3 select-none opacity-40 font-serif leading-none">“</span>
+                    <p className="text-base sm:text-lg md:text-2xl font-black text-slate-900 font-calligraphy leading-relaxed pl-4 tracking-wide">
+                      {q.quote}
+                    </p>
+                  </div>
+
+                  {/* Speaker Credits */}
+                  <div className="pt-2 border-t border-amber-300/60 flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${q.accentDot} animate-pulse shrink-0`}></span>
+                    <div>
+                      <h4 className="text-sm md:text-base font-black text-slate-950 tracking-tight">
+                        — {q.author}
+                      </h4>
+                      <p className="text-[10px] md:text-xs text-amber-900 font-extrabold mt-0.5">
+                        {q.role}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+
+        {/* Manual selection pill links */}
+        <div className="flex justify-center flex-wrap gap-2.5 pt-2 relative z-10">
+          {assemblyQuotes.map((q, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setActiveQuoteIndex(idx);
+                try {
+                  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+                  if (AudioCtx) {
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.setValueAtTime(360, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.01, ctx.currentTime);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.05);
+                  }
+                } catch {}
+              }}
+              className={`px-4 py-1.5 rounded-xl border font-black text-[10px] transition-all cursor-pointer flex items-center gap-1.5 uppercase tracking-wider ${
+                idx === activeQuoteIndex
+                  ? "bg-amber-600 border-amber-705 text-white shadow-xs scale-105"
+                  : "bg-white hover:bg-amber-100 border-amber-200 text-amber-900"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${idx === activeQuoteIndex ? "bg-white" : "bg-amber-400"}`}></span>
+              <span>{q.author.split(" (")[0]}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Modern Mastery progress dashboard with Recharts Graph */}

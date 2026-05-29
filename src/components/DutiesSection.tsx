@@ -178,7 +178,12 @@ export default function DutiesSection({ setMascotData, incrementScore }: DutiesS
             <motion.div
               key={item.id}
               layout
-              className={`border-3 rounded-3xl p-5 flex flex-col justify-between transition-all ${cardBorderClass}`}
+              whileHover={{ 
+                scale: 1.03, 
+                y: -6, 
+                transition: { type: "spring", stiffness: 300, damping: 15 } 
+              }}
+              className={`border-3 rounded-3xl p-5 flex flex-col justify-between transition-colors duration-200 shadow-xs hover:shadow-lg ${cardBorderClass}`}
             >
               <div className="space-y-3">
                 <div className="flex justify-between items-start">

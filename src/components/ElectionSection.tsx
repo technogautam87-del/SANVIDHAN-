@@ -152,6 +152,9 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
 
   // EVM Beep, Clearance Popups & PIN validation booth security
   const [showClearSuccessPopup, setShowClearSuccessPopup] = useState(false);
+  const [showInstructionPopup, setShowInstructionPopup] = useState<boolean>(() => {
+    return localStorage.getItem("samvidhan_election_guide_closed") !== "true";
+  });
   const [enteredPin, setEnteredPin] = useState("");
   const [pinAttempts, setPinAttempts] = useState(0);
   const [pinVerified, setPinVerified] = useState(false);
@@ -593,6 +596,144 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
           </div>
         )}
       </AnimatePresence>
+
+      {/* ⚠️ ELECTION BOOTH GUIDELINE STEP-BY-STEP POPUP */}
+      <AnimatePresence>
+        {showInstructionPopup && (
+          <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="bg-white border-4 border-indigo-600 rounded-[35px] max-w-2xl w-full shadow-2xl p-6 md:p-8 space-y-6 text-slate-800 relative text-left my-8"
+            >
+              {/* Header Title with celebratory icon */}
+              <div className="text-center space-y-1 pb-4 border-b border-slate-200">
+                <span className="text-5xl animate-bounce inline-block">🗳️📖</span>
+                <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+                  बाल चुनाव बूथ - सचित्र निर्देश कड़ियाँ
+                </h3>
+                <p className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-wide">
+                  EVM Simulation Guide • लोकतंत्र की उत्सव सीढ़ियां सीखें!
+                </p>
+              </div>
+
+              {/* Graphic Classroom Simulation Steps */}
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                
+                {/* STEP 1 */}
+                <div className="flex flex-col sm:flex-row gap-4 bg-orange-50/80 border border-orange-200 rounded-2xl p-4 transition hover:shadow-xs">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-white border-2 border-orange-300 rounded-xl flex flex-col items-center justify-center text-3xl shadow-xs select-none">
+                    <span>👥</span>
+                    <span className="text-[9px] font-black text-orange-600 mt-1 uppercase">वोटर सूची</span>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9.5px] bg-orange-500 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
+                      चरण १ • मतदाता नामांकन
+                    </span>
+                    <h4 className="text-xs font-black text-orange-950">साथी दोस्तों के वोटर कार्ड व गुप्त संख्या (PIN) बनाना</h4>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      अपने मित्र अध्यापकों या बाल विद्यार्थियों के नाम तथा आयु जोड़ें। प्रणाली उन्हें एक **विशिष्ट ४-अंकों का गुप्त PIN** और पहचान पत्र प्रदान करेगी, जिसे गुप्त रखना अनिवार्य है!
+                    </p>
+                  </div>
+                </div>
+
+                {/* STEP 2 */}
+                <div className="flex flex-col sm:flex-row gap-4 bg-indigo-50/80 border border-indigo-200 rounded-2xl p-4 transition hover:shadow-xs">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-white border-2 border-indigo-300 rounded-xl flex flex-col items-center justify-center text-3xl shadow-xs select-none">
+                    <span>🦁</span>
+                    <span className="text-[9px] font-black text-indigo-600 mt-1 uppercase">प्रत्याशी</span>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9.5px] bg-indigo-600 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
+                      चरण २ • नामांकन एवं एजेंडा
+                    </span>
+                    <h4 className="text-xs font-black text-indigo-950">उम्मीदवारों के चुनाव चिन्ह व संकल्प घोषणा पत्र संपादन</h4>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      चुनाव मैदान में ४ प्रसिद्ध बाल उम्मीदवार खड़े हैं। आप अपने मनमुताबिक प्रत्याशियों के मुखौटे, वादे (मैनीफेस्टो) और चुनाव चिन्ह को सहजता से संपादित कर सकते हैं।
+                    </p>
+                  </div>
+                </div>
+
+                {/* STEP 3 */}
+                <div className="flex flex-col sm:flex-row gap-4 bg-blue-50/80 border border-blue-200 rounded-2xl p-4 transition hover:shadow-xs">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-white border-2 border-blue-300 rounded-xl flex flex-col items-center justify-center text-3xl shadow-xs select-none">
+                    <span>🖥️</span>
+                    <span className="text-[9px] font-black text-blue-600 mt-1 uppercase">गुप्त ईवीएम</span>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9.5px] bg-blue-500 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
+                      चरण ३ • गुप्त ईवीएम मतदान
+                    </span>
+                    <h4 className="text-xs font-black text-blue-950">पिन दाखिल करें, 'बीप' ध्वनि व रसीद (VVPAT) अवलोकन</h4>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      मतदान बूथ पर जाएं, विद्यार्थी अपना नाम चुनकर ४-अंकों का गुप्त पिन दाखिल करेगा। तत्पश्चात, ईवीएम मशीन की लाल-हरी बटन दबाएं। **"बीप"** 🔊 की आवाज़ के साथ **VVPAT बॉक्स** में वोट रसीद नीचे गिर जाएगी!
+                    </p>
+                  </div>
+                </div>
+
+                {/* STEP 4 */}
+                <div className="flex flex-col sm:flex-row gap-4 bg-amber-50/80 border border-amber-200 rounded-2xl p-4 transition hover:shadow-xs">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-white border-2 border-amber-300 rounded-xl flex flex-col items-center justify-center text-3xl shadow-xs select-none">
+                    <span>📊</span>
+                    <span className="text-[9px] font-black text-amber-600 mt-1 uppercase">लाइव गणना</span>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9.5px] bg-amber-500 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
+                      चरण ४ • लाइव मतगणना डेस्क
+                    </span>
+                    <h4 className="text-xs font-black text-amber-950">स्वचालित वोटों की पारदर्शी गिनती</h4>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      समस्त मतदान समाप्त होने के पश्चात लाइव काउंटिंग कक्ष का दरवाज़ा खुल जाएगा। **"ऑटो गणना शुरू करें"** पर क्लिक कर वोटों की पारदर्शी एवं सुरक्षित संकर गिनती लाइव ग्राफ़िक्स के साथ देखें!
+                    </p>
+                  </div>
+                </div>
+
+                {/* STEP 5 */}
+                <div className="flex flex-col sm:flex-row gap-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 transition hover:shadow-xs">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-white border-2 border-emerald-300 rounded-xl flex flex-col items-center justify-center text-3xl shadow-xs select-none">
+                    <span>👑</span>
+                    <span className="text-[9px] font-black text-emerald-600 mt-1 uppercase">विजेता</span>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9.5px] bg-emerald-600 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
+                      चरण ५ • राज्याभिषेक व परिणाम PDF
+                    </span>
+                    <h4 className="text-xs font-black text-emerald-950">फूलों की वर्षा और सुरक्षित परिणाम सहेजना</h4>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      विजेता बाल प्रधानमंत्री का फूलों की बारिश 🌸 के साथ अभिनंदन करें! अंत में विद्यालय की समग्र चुनाव परिणाम रिपोर्ट को बिना मतदान रिकॉर्ड (मतदाता गोपनीयता बनाए रखने हेतु) **सचित्र पीडीएफ (PDF) सेव या प्रिंट** करें!
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Bottom alignment button */}
+              <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-[10px] text-slate-500 font-bold leading-normal max-w-xs">
+                  🛡️ निष्पक्ष एवं गुप्त मतदान स्वस्थ लोकतंत्र का आधार स्तंभ है!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInstructionPopup(false);
+                    localStorage.setItem("samvidhan_election_guide_closed", "true");
+                    playClickTick();
+                    setMascotData({
+                      mood: "excited",
+                      text: "अद्भुत बच्चों! अब आप चुनाव बूथ पर पंजीकरण करके मतदान आरंभ कर सकते हैं। लोकतंत्र अमर रहे! 🗳️🙌"
+                    });
+                  }}
+                  className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-md border-b-4 border-indigo-800 active:border-b-0 cursor-pointer transition uppercase tracking-wider flex items-center justify-center gap-1 shrink-0"
+                >
+                  <span>हाँ, समझ गया! शुरू करें 👍 (OK)</span>
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* SECTION HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -604,13 +745,32 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
           </p>
         </div>
 
-        <button
-          onClick={resetEntireElectionSystem}
-          className="px-3.5 py-1.5 self-start bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 text-slate-700 font-black rounded-xl text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>नया चुनाव सेटअप शुरू करें</span>
-        </button>
+        <div className="flex flex-wrap gap-2 self-start md:self-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setShowInstructionPopup(true);
+              playClickTick();
+              setMascotData({
+                mood: "speaking",
+                text: "बिल्कुल बच्चों! यह निर्देश मार्गदर्शिका आपको चरण-दर-चरण बताएगी कि किस प्रकार चुनाव का संचालन करना है।"
+              });
+            }}
+            className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-extrabold rounded-xl text-[11px] flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>📖 सचित्र चुनाव गाइड (Guide)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={resetEntireElectionSystem}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 text-slate-700 font-black rounded-xl text-[11px] flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>नया चुनाव सेटअप शुरू करें</span>
+          </button>
+        </div>
       </div>
 
       {/* PIPELINE PROGRESS INDICATOR */}
@@ -2432,7 +2592,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       </div>
 
                       {/* Section 3: Registered Voters List & Status */}
-                      <div className="space-y-3 pt-2">
+                      <div className="space-y-3 pt-2 no-print-pdf">
                         <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest border-l-4 border-indigo-500 pl-2">
                           👥 मतदाता सूची एवं मतदान रिकॉर्ड (Voter Participation Log)
                         </h4>
@@ -2606,8 +2766,14 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                                   .print-btn:hover {
                                     background-color: #059669;
                                   }
+                                  .no-print-pdf {
+                                    display: none !important;
+                                  }
                                   @media print {
                                     .print-btn {
+                                      display: none !important;
+                                    }
+                                    .no-print-pdf {
                                       display: none !important;
                                     }
                                     body {
