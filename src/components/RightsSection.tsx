@@ -547,7 +547,7 @@ export default function RightsSection({ setMascotData, incrementScore }: RightsS
               {/* Console Footing bar */}
               <div className="bg-slate-100 px-4 py-2 border-t text-[11px] text-slate-500 font-bold flex justify-between">
                 <span>अधिकार: {selectedRight.title}</span>
-                <span>कक्षा 7 भारत नागरिकता विकास</span>
+                <span>डिजिटल बाल नागरिकता विकास</span>
               </div>
             </div>
           </div>

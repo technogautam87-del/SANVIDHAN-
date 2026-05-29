@@ -591,6 +591,102 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
             </div>
           </div>
 
+          {/* 📜 सचित्र एनिमेटेड टाइमलाइन (Scroll-Triggered Timeline Segment) */}
+          <div className="mt-12 space-y-8">
+            <div className="text-center max-w-xl mx-auto space-y-2">
+              <span className="text-[10px] font-black text-orange-600 bg-orange-100 border-2 border-orange-300 px-3 py-1 rounded-full uppercase tracking-widest inline-block animate-bounce">
+                📜 जादूई स्क्रॉल यात्रा
+              </span>
+              <h3 className="text-2xl font-black text-slate-800">
+                यात्रा पथ: संविधान निर्माण के गौरवशाली कदम 🌟
+              </h3>
+              <p className="text-xs text-slate-500 font-bold">
+                जैसे-जैसे आप नीचे स्क्रॉल करेंगे, इतिहास के सुनहरे पन्ने और सुंदर तिरंगे झंडे खुद-ब-खुद प्रकट होंगे!
+              </p>
+            </div>
+
+            <div className="relative border-l-4 border-dashed border-indigo-200 pl-8 md:pl-12 space-y-12 max-w-4xl mx-auto py-6">
+              {HISTORICAL_MILESTONES.map((item, index) => {
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: -40, y: 30 }}
+                    whileInView={{ opacity: 1, x: 0, y: 0 }}
+                    viewport={{ once: false, amount: 0.2 }}
+                    transition={{ type: "spring", stiffness: 80, delay: 0.05 }}
+                    className="relative bg-white border-3 border-slate-150 p-6 md:p-8 rounded-[35px] shadow-md hover:shadow-xl hover:border-indigo-300 transition-all flex flex-col md:flex-row gap-6 items-center"
+                  >
+                    {/* Animated Flag flying in on scroll */}
+                    <div className="absolute top-6 -left-[51px] md:-left-[69px] z-20">
+                      <motion.div
+                        initial={{ scale: 0, rotate: -60, y: 20 }}
+                        whileInView={{ scale: 1, rotate: 0, y: 0 }}
+                        viewport={{ once: false }}
+                        transition={{ type: "spring", stiffness: 180, damping: 11, delay: 0.15 }}
+                        className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 border-3 border-white shadow-xl flex items-center justify-center text-lg md:text-2xl cursor-pointer"
+                        whileHover={{ scale: 1.15, rotate: 10 }}
+                      >
+                        <motion.span
+                          animate={{ 
+                            rotate: [0, 12, -12, 12, 0],
+                            y: [0, -3, 0]
+                          }}
+                          transition={{ 
+                            repeat: Infinity, 
+                            duration: 3, 
+                            ease: "easeInOut"
+                          }}
+                          className="inline-block"
+                        >
+                          🇮🇳
+                        </motion.span>
+                      </motion.div>
+                    </div>
+
+                    {/* Left node label */}
+                    <div className="space-y-3 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black bg-orange-100 border border-orange-200 text-orange-850 px-3 py-1 rounded-xl uppercase">
+                          वर्ष {item.year}
+                        </span>
+                        <h4 className="text-base font-black text-slate-800">
+                          {item.title}
+                        </h4>
+                      </div>
+
+                      <p className="text-xs md:text-sm font-black text-slate-600 leading-relaxed italic border-l-2 border-indigo-400 pl-2">
+                        "{item.description}"
+                      </p>
+
+                      <p className="text-xs text-slate-500 font-bold leading-relaxed bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                        {item.detail}
+                      </p>
+                    </div>
+
+                    {/* Side Character Graphic Panel */}
+                    <div className="w-full md:w-36 bg-slate-900 border-2 border-slate-950 rounded-[28px] p-4 text-white flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0 aspect-video md:aspect-square shadow-inner">
+                      <div className="absolute top-[-20px] right-[-20px] w-20 h-20 bg-white/5 rounded-full filter blur-xl"></div>
+                      <div className="text-3xl filter drop-shadow">
+                        {item.illustrationType === "assembly" && "👨‍⚖️"}
+                        {item.illustrationType === "writing" && "✒️"}
+                        {item.illustrationType === "document" && "📜"}
+                        {item.illustrationType === "flag" && "🌟"}
+                        {item.illustrationType === "calligrapher" && "✍️"}
+                      </div>
+                      <span className="text-[9px] font-black text-slate-350 mt-2 block tracking-wider uppercase">
+                        {item.illustrationType === "assembly" && "संविधान सभा"}
+                        {item.illustrationType === "writing" && "प्रारूप लेखन"}
+                        {item.illustrationType === "document" && "पावन ग्रंथ"}
+                        {item.illustrationType === "flag" && "लागू उत्सव"}
+                        {item.illustrationType === "calligrapher" && "हस्तलेखन कला"}
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Fact note block */}
           <div className="bg-amber-50 border-3 border-dashed border-amber-300 p-5 rounded-3xl flex gap-3 items-start">
             <span className="text-xl shrink-0">💡</span>

@@ -195,7 +195,7 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
             हमारा <span className="text-orange-600">संविधान</span>
           </h1>
           <p className="text-sm md:text-lg font-black text-slate-700 mt-2 bg-white/80 backdrop-blur px-4 py-1.5 rounded-full w-fit mx-auto md:mx-0 shadow-sm border border-orange-200">
-            कक्षा ७ के लिए एक मज़ेदार सफर 🇮🇳
+            सभी बच्चों के लिए एक मज़ेदार सफर 🇮🇳
           </p>
           
           <div className="mt-4 flex flex-wrap gap-3 justify-center md:justify-start">

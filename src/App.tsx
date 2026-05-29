@@ -12,7 +12,9 @@ import RightsSection from "./components/RightsSection";
 import DutiesSection from "./components/DutiesSection";
 import ElectionSection from "./components/ElectionSection";
 import QuizSection from "./components/QuizSection";
+import PreambleSection from "./components/PreambleSection";
 import SamvidhanMitra from "./components/SamvidhanMitra";
+import DevelopersSection from "./components/DevelopersSection";
 import { MascotMood } from "./types";
 
 export default function App() {
@@ -82,20 +84,24 @@ export default function App() {
   const navigationTabs = [
     { id: "home", label: "🏠 होम", color: "hover:border-orange-400 text-slate-700 hover:text-orange-600 font-bold" },
     { id: "history", label: "🕒 इतिहास", color: "hover:border-blue-400 text-slate-700 hover:text-blue-600 font-bold" },
+    { id: "preamble", label: "📜 उद्देशिका", color: "hover:border-indigo-400 text-slate-700 hover:text-indigo-600 font-bold" },
     { id: "features", label: "🔰 विशेषताएँ", color: "hover:border-emerald-400 text-slate-700 hover:text-emerald-600 font-bold" },
     { id: "rights", label: "⚖️ अधिकार खेल", color: "hover:border-pink-400 text-slate-700 hover:text-pink-600 font-bold" },
     { id: "duties", label: "🎉 कर्तव्य बोर्ड", color: "hover:border-yellow-400 text-slate-700 hover:text-yellow-600 font-bold" },
     { id: "election", label: "🗳️ चुनाव बूथ", color: "hover:border-green-400 text-slate-700 hover:text-green-600 font-bold" },
-    { id: "quiz", label: "🎯 सीखो व खेलो", color: "hover:border-amber-400 text-slate-700 hover:text-amber-600 font-bold" }
+    { id: "quiz", label: "🎯 सीखो व खेलो", color: "hover:border-amber-400 text-slate-700 hover:text-amber-600 font-bold" },
+    { id: "developers", label: "💻 डेवलपर्स", color: "hover:border-purple-400 text-slate-700 hover:text-purple-600 font-bold" }
   ];
 
   const getTabBorderColor = () => {
     switch (activeTab) {
       case "history": return "border-blue-400 shadow-[0_12px_0_#3b82f6]";
+      case "preamble": return "border-indigo-400 shadow-[0_12px_0_#6366f1]";
       case "rights": return "border-pink-500 shadow-[0_12px_0_#ec4899]";
       case "duties": return "border-yellow-400 shadow-[0_12px_0_#facc15]";
       case "election": return "border-green-500 shadow-[0_12px_0_#22c55e]";
       case "quiz": return "border-amber-500 shadow-[0_12px_0_#f59e0b]";
+      case "developers": return "border-purple-500 shadow-[0_12px_0_#a855f7]";
       default: return "border-orange-400 shadow-[0_12px_0_#f97316]";
     }
   };
@@ -121,7 +127,7 @@ export default function App() {
               <h1 className="text-lg md:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-orange-600 to-green-600 italic flex items-center gap-2">
                 <span>संविधान मित्र</span>
                 <span className="text-[10px] non-italic text-amber-900 bg-amber-100 border-2 border-amber-300 px-2.5 py-0.5 rounded-full font-black">
-                  कक्षा ७
+                  बाल संस्करण
                 </span>
               </h1>
               <p className="text-[10px] text-slate-500 font-extrabold hidden md:block">
@@ -214,6 +220,9 @@ export default function App() {
           {activeTab === "history" && (
             <HistorySection setMascotData={handleSetMascotData} />
           )}
+          {activeTab === "preamble" && (
+            <PreambleSection setMascotData={handleSetMascotData} />
+          )}
           {activeTab === "features" && (
             <FeaturesSection onNavigate={setActiveTab} setMascotData={handleSetMascotData} />
           )}
@@ -228,6 +237,9 @@ export default function App() {
           )}
           {activeTab === "quiz" && (
             <QuizSection setMascotData={handleSetMascotData} incrementScore={incrementScore} gameScore={score} />
+          )}
+          {activeTab === "developers" && (
+            <DevelopersSection setMascotData={handleSetMascotData} />
           )}
         </div>
 
@@ -246,7 +258,7 @@ export default function App() {
 
       {/* Humble Aesthetic Footer */}
       <footer className="mt-12 py-6 bg-slate-900 text-slate-400 text-center border-t border-slate-800 text-xs font-sans tracking-wide space-y-1.5">
-        <p>© 2026 भारत सरकार डिजिटल बाल साक्षरता अभियान। कक्षा ७ के लिए विशेष संस्करण।</p>
+        <p>© 2026 भारत सरकार डिजिटल बाल साक्षरता अभियान। विशेष संस्करण।</p>
         <p className="text-slate-600 font-bold">
           "अनेकता में एकता, यही है भारत की विशेषता!" 🇮🇳
         </p>

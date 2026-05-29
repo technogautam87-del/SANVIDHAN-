@@ -128,8 +128,14 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
   // Analytics states
   const [swingVotes, setSwingVotes] = useState<number>(0);
 
+  // School Name manual state
+  const [schoolName, setSchoolName] = useState<string>(() => {
+    return localStorage.getItem("samvidhan_election_school_name") || "बाल एकता उच्चतर माध्यमिक विद्यालय";
+  });
+
   // Sync state with storage
   useEffect(() => {
+    localStorage.setItem("samvidhan_election_school_name", schoolName);
     localStorage.setItem("samvidhan_election_step", step);
     localStorage.setItem("samvidhan_election_voters", JSON.stringify(voters));
     localStorage.setItem("samvidhan_election_candidates", JSON.stringify(candidates));
@@ -570,6 +576,28 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
         {/* ================= STEP 1: CARD CREATION OFFICE ================= */}
         {step === "card-creation" && (
           <div className="space-y-6">
+
+            {/* SCHOOL NAME SETUP CARD */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-200 rounded-[24px] p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex gap-3 items-center">
+                <span className="text-3xl">🏫</span>
+                <div className="text-left font-sans">
+                  <h4 className="text-sm font-black text-slate-800">अपने विद्यालय का नाम दर्ज करें (Edit School Name):</h4>
+                  <p className="text-[10px] text-slate-500 font-bold leading-normal">
+                    यह नाम वोटर कार्ड, घोषणापत्र और अंतिम समग्र चुनाव रिपोर्ट (PDF) में प्रिंट होकर आएगा!
+                  </p>
+                </div>
+              </div>
+              <div className="w-full md:w-auto flex-1 max-w-sm">
+                <input
+                  type="text"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  placeholder="विद्यालय का नाम यहाँ लिखें..."
+                  className="w-full text-xs font-black p-3 border-2 border-orange-200 rounded-xl bg-white focus:border-orange-500 focus:outline-none shadow-xs text-slate-800"
+                />
+              </div>
+            </div>
             
             {/* SETUP STEP DYNAMIC SUB-TABS */}
             <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
@@ -2248,6 +2276,292 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       </div>
                     );
                   })()}
+
+                  {/* ================= COMPREHENSIVE CONSOLIDATED REPORT CARD ================= */}
+                  <div className="bg-white border-4 border-double border-slate-350 rounded-[30px] p-6 md:p-8 space-y-6 shadow-md relative overflow-hidden font-sans">
+                    
+                    {/* Header Decorator */}
+                    <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-orange-500 via-slate-200 to-green-600"></div>
+
+                    <div id="complete-final-report" className="space-y-6 p-4 text-left">
+                      {/* school name and banner */}
+                      <div className="text-center space-y-2 pb-5 border-b-4 border-double border-slate-300">
+                        <span className="text-4xl block">🏛️</span>
+                        <h3 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
+                          {schoolName || "बाल एकता विद्यालय"}
+                        </h3>
+                        <p className="text-xs bg-indigo-50 border border-indigo-150 text-indigo-900 px-3 py-1 font-bold rounded-full w-fit mx-auto mt-1">
+                          🗳️ लोकसभा बाल लोकतान्त्रिक चुनाव उत्सव - २०२६ (समग्र चुनाव परिणाम एवं भागीदारी रिपोर्ट)
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-extrabold tracking-wider block">
+                          दिनांक: {new Date().toLocaleDateString('hi-IN', { year: 'numeric', month: 'long', day: 'numeric' })} | अनुच्छेद ३२६ सिमुलेशन
+                        </p>
+                      </div>
+
+                      {/* Section 1: Winning Outcome Summary */}
+                      <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 text-center space-y-3">
+                        <div className="text-emerald-700 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5 align-middle">
+                          <span>🏆 निर्वाचित बाल प्रधानमंत्री</span>
+                        </div>
+                        <h4 className="text-2xl font-black text-slate-800 leading-none">
+                          {mainWinner.symbol} श्री/कुमारी {mainWinner.name} ({mainWinner.party})
+                        </h4>
+                        <p className="text-xs font-bold text-slate-600 max-w-lg mx-auto leading-relaxed">
+                          देश के नये बाल प्रधानमंत्री के रूप में कुल <strong>{mainWinner.votes} मतों</strong> के प्रचंड बहुमत से विजयी घोषित किए गए हैं।
+                        </p>
+                        <div className="pt-2 border-t border-emerald-100 text-[10px] font-extrabold text-emerald-800 italic">
+                          "घोषणापत्र संकल्प: {mainWinner.agenda}"
+                        </div>
+                      </div>
+
+                      {/* Section 2: Detailed Candidate Results */}
+                      <div className="space-y-3 pt-2">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest border-l-4 border-indigo-500 pl-2">
+                          📊 प्रत्याशी आधिकारिक परिणाम तालिका (Candidate Tally)
+                        </h4>
+                        <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black">
+                                <th className="p-3 text-center">चिन्ह</th>
+                                <th className="p-3">प्रत्याशी का नाम</th>
+                                <th className="p-3">राजनैतिक दल</th>
+                                <th className="p-3 text-center">कुल प्राप्त मत</th>
+                                <th className="p-3">संकल्प एजेंडा (Manifesto)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {candidates.map((cand) => (
+                                <tr key={cand.id} className="border-b border-slate-150 hover:bg-slate-50 font-semibold text-slate-700">
+                                  <td className="p-3 text-center text-xl">{cand.symbol}</td>
+                                  <td className="p-3 font-bold text-slate-900">{cand.name}</td>
+                                  <td className="p-3">{cand.party}</td>
+                                  <td className="p-3 text-center">
+                                    <span className="bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs font-black text-slate-850">
+                                      {cand.votes} मत
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-[10.5px] font-bold text-slate-500 max-w-xs truncate" title={cand.agenda}>
+                                    {cand.agenda}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Section 3: Registered Voters List & Status */}
+                      <div className="space-y-3 pt-2">
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest border-l-4 border-indigo-500 pl-2">
+                          👥 मतदाता सूची एवं मतदान रिकॉर्ड (Voter Participation Log)
+                        </h4>
+                        <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white max-h-72 overflow-y-auto">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black">
+                                <th className="p-3">मतदाता आईडी</th>
+                                <th className="p-3">मतदाता का नाम</th>
+                                <th className="p-3 text-center">स्टीकर</th>
+                                <th className="p-3">आयु</th>
+                                <th className="p-3 text-center">स्थिति (Status)</th>
+                                <th className="p-3">समर्थित प्रत्याशी कूट</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {voters.map((voter) => {
+                                const matchedCandidate = voter.votedTo !== undefined 
+                                  ? candidates.find(c => c.id === voter.votedTo) 
+                                  : null;
+                                return (
+                                  <tr key={voter.id} className="border-b border-slate-150 hover:bg-slate-50 font-semibold text-slate-700">
+                                    <td className="p-3 font-mono text-[10px] text-slate-400">{voter.id}</td>
+                                    <td className="p-3 font-bold text-slate-900">{voter.name}</td>
+                                    <td className="p-3 text-center text-lg">{voter.symbol}</td>
+                                    <td className="p-3">{voter.age} वर्ष</td>
+                                    <td className="p-3 text-center">
+                                      {voter.voted ? (
+                                        <span className="bg-emerald-100 border border-emerald-250 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full inline-block">
+                                          ✔️ हाँ (Voted)
+                                        </span>
+                                      ) : (
+                                        <span className="bg-rose-100 border border-rose-200 text-rose-800 text-[10px] font-black px-2 py-0.5 rounded-full inline-block">
+                                          ❌ नहीं (Absent)
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="p-3 font-medium">
+                                      {matchedCandidate ? (
+                                        <span className="font-bold text-indigo-700">
+                                          {matchedCandidate.symbol} {matchedCandidate.name} ({matchedCandidate.party})
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 italic">- मतदान नहीं किया -</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Signatures & Certification */}
+                      <div className="pt-8 grid grid-cols-2 gap-8 text-center font-sans">
+                        <div className="flex flex-col items-center">
+                          <div className="w-40 border-t border-slate-300 pt-2 text-xs text-slate-550 font-bold text-slate-500">
+                            चुनाव आयुक्त हस्ताक्षर
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-extrabold mt-0.5 font-mono">{schoolName}</div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <div className="w-40 border-t border-slate-300 pt-2 text-xs text-slate-550 font-bold text-slate-500">
+                            बाल संसद सचिव
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-extrabold mt-0.5">बाल संसद मंत्रिपरिषद</div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* PDF Export trigger */}
+                    <div className="flex justify-center pt-2 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const printContent = document.getElementById("complete-final-report")?.innerHTML;
+                          if (!printContent) return;
+                          const printWindow = window.open("", "_blank");
+                          if (!printWindow) {
+                            alert("कृपया पॉप-अप ब्लॉकर्स अक्षम करें ताकि रिपोर्ट को सहेजा जा सके!");
+                            return;
+                          }
+                          printWindow.document.write(`
+                            <html>
+                              <head>
+                                <title>अंतिम चुनाव रिपोर्ट - ${schoolName}</title>
+                                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;700;900&family=Noto+Sans+Devanagari:wght@450;700;900&display=swap" rel="stylesheet" />
+                                <style>
+                                  body {
+                                    font-family: 'Noto Sans Devanagari', 'Inter', sans-serif;
+                                    max-width: 850px;
+                                    margin: 0 auto;
+                                    padding: 40px;
+                                    color: #334155;
+                                    background: #ffffff;
+                                  }
+                                  .text-center { text-align: center; }
+                                  .text-emerald-700 { color: #047857; }
+                                  .bg-emerald-50 { background-color: #ecfdf5; }
+                                  .border-emerald-200 { border-color: #a7f3d0; }
+                                  .rounded-2xl { border-radius: 1rem; }
+                                  .rounded-xl { border-radius: 0.75rem; }
+                                  .p-5 { padding: 1.25rem; }
+                                  .p-3 { padding: 0.75rem; }
+                                  .pb-5 { padding-bottom: 1.25rem; }
+                                  .space-y-6 > * + * { margin-top: 1.5rem; }
+                                  .space-y-3 > * + * { margin-top: 0.75rem; }
+                                  .space-y-2 > * + * { margin-top: 0.5rem; }
+                                  .font-black { font-weight: 900; }
+                                  .font-bold { font-weight: 700; }
+                                  .font-semibold { font-weight: 600; }
+                                  .text-2xl { font-size: 1.5rem; }
+                                  .text-xl { font-size: 1.25rem; }
+                                  .text-xs { font-size: 0.75rem; }
+                                  .text-[10px] { font-size: 9px; }
+                                  .border-b-4 { border-bottom-width: 4px; }
+                                  .border-double { border-style: double; }
+                                  .border-slate-300 { border-color: #cbd5e1; }
+                                  .bg-slate-50 { background-color: #f8fafc; }
+                                  .bg-slate-100 { background-color: #f1f5f9; }
+                                  .text-slate-800 { color: #1e293b; }
+                                  .text-slate-600 { color: #475569; }
+                                  .text-slate-500 { color: #64748b; }
+                                  .border-l-4 { border-left-width: 4px; }
+                                  .border-indigo-500 { border-color: #6366f1; }
+                                  .bg-indigo-50 { background-color: #e0e7ff; }
+                                  .text-indigo-800 { color: #3730a3; }
+                                  .text-indigo-700 { color: #4338ca; }
+                                  table {
+                                    width: 100%;
+                                    border-collapse: collapse;
+                                    margin: 15px 0;
+                                  }
+                                  th, td {
+                                    border: 1px solid #cbd5e1;
+                                    padding: 8px 12px;
+                                    text-align: left;
+                                  }
+                                  th {
+                                    background-color: #f8fafc;
+                                    color: #475569;
+                                  }
+                                  .bg-emerald-100 { background-color: #d1fae5; }
+                                  .text-emerald-800 { color: #065f46; }
+                                  .bg-rose-100 { background-color: #ffe4e6; }
+                                  .text-rose-800 { color: #9f1239; }
+                                  .grid { display: grid; }
+                                  .grid-cols-2 { grid-template-cols: repeat(2, minmax(0, 1fr)); }
+                                  .pt-8 { padding-top: 2rem; }
+                                  .pt-2 { padding-top: 0.5rem; }
+                                  .gap-8 { gap: 2rem; }
+                                  .w-40 { width: 10rem; }
+                                  .border-t { border-top-width: 1px; }
+                                  .print-btn {
+                                    display: block;
+                                    width: fit-content;
+                                    margin: 30px auto 0;
+                                    padding: 12px 24px;
+                                    background-color: #10b981;
+                                    color: white;
+                                    font-weight: 850;
+                                    font-size: 14px;
+                                    border: none;
+                                    border-radius: 12px;
+                                    cursor: pointer;
+                                    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+                                    font-family: inherit;
+                                  }
+                                  .print-btn:hover {
+                                    background-color: #059669;
+                                  }
+                                  @media print {
+                                    .print-btn {
+                                      display: none !important;
+                                    }
+                                    body {
+                                      padding: 10px;
+                                    }
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <div class="space-y-6">
+                                  ${printContent}
+                                </div>
+                                <button class="print-btn" onclick="window.print()">
+                                  🖨️ प्रिंट करें व पीडीएफ (PDF) सेव करें
+                                </button>
+                                <script>
+                                  window.onload = function() {
+                                    setTimeout(function() {
+                                      window.print();
+                                    }, 500);
+                                  }
+                                </script>
+                              </body>
+                            </html>
+                          `);
+                          printWindow.document.close();
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 text-white font-black text-xs px-6 py-3.5 rounded-2xl transition duration-150 border-b-4 border-emerald-800 active:border-b-0 cursor-pointer flex items-center justify-center gap-2 shadow-md w-full sm:w-auto"
+                      >
+                        <span>🖨️ रिपोर्ट डाउनलोड करें (Save as PDF / Print)</span>
+                      </button>
+                    </div>
+
+                  </div>
 
                   {/* Constitutional lessons frame */}
                   <div className="bg-amber-50 p-5 border-2 border-amber-200 rounded-3xl font-sans text-xs space-y-2 leading-relaxed text-amber-900">
