@@ -169,6 +169,25 @@ export default function DevelopersSection({ setMascotData }: DevelopersSectionPr
   const [tempGautamSocials, setTempGautamSocials] = useState(() => ({ ...gautamSocials }));
   const [tempKushagraSocials, setTempKushagraSocials] = useState(() => ({ ...kushagraSocials }));
 
+  // Load custom emails of developers
+  const [gautamEmail, setGautamEmail] = useState(() => {
+    return localStorage.getItem("gautam_email") || "technogautam87@gmail.com";
+  });
+  const [kushagraEmail, setKushagraEmail] = useState(() => {
+    return localStorage.getItem("kushagra_email") || "kushagragaur87@gmail.com";
+  });
+
+  const [tempGautamEmail, setTempGautamEmail] = useState(gautamEmail);
+  const [tempKushagraEmail, setTempKushagraEmail] = useState(kushagraEmail);
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isUnlocked) {
+      setTempGautamEmail(gautamEmail);
+      setTempKushagraEmail(kushagraEmail);
+    }
+  }, [isUnlocked, gautamEmail, kushagraEmail]);
+
   const isValidUrl = (url: string) => {
     if (!url || url.trim() === "") return true; // valid if empty or cleared
     const regex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/i;
@@ -186,6 +205,7 @@ export default function DevelopersSection({ setMascotData }: DevelopersSectionPr
     const currentSocials = dev.id === "gautam" ? gautamSocials : kushagraSocials;
     return {
       ...dev,
+      email: dev.id === "gautam" ? gautamEmail : kushagraEmail,
       socials: dev.socials.map((social) => ({
         ...social,
         url: currentSocials[social.platform as keyof typeof currentSocials] || social.url
@@ -519,29 +539,26 @@ export default function DevelopersSection({ setMascotData }: DevelopersSectionPr
         </p>
       </div>
 
-      {/* Photo Unlock Center */}
-      <div className="max-w-xl mx-auto bg-gradient-to-r from-amber-50 to-orange-50 border-3 border-amber-300 p-4 md:p-5 rounded-[28px] shadow-sm transition-all space-y-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 text-left w-full sm:w-auto">
-            <div className={`p-3 rounded-2xl ${isUnlocked ? "bg-emerald-100 animate-bounce" : "bg-red-100"} shrink-0`}>
+      {/* Photo Unlock Center (Compact Locker Layout) */}
+      <div className="max-w-xs sm:max-w-sm mx-auto bg-gradient-to-r from-amber-50 to-orange-50 border-3 border-amber-300 p-3 sm:p-4 rounded-[24px] shadow-sm transition-all space-y-3">
+        <div className="flex flex-col items-center justify-center text-center gap-3">
+          <div className="flex items-center gap-2.5 justify-center">
+            <div className={`p-2 rounded-xl h-10 w-10 flex items-center justify-center ${isUnlocked ? "bg-emerald-100 animate-bounce" : "bg-red-100"} shrink-0`}>
               {isUnlocked ? (
-                <Unlock className="w-6 h-6 text-emerald-700" />
+                <Unlock className="w-5 h-5 text-emerald-700" />
               ) : (
-                <Lock className="w-6 h-6 text-red-700" />
+                <Lock className="w-5 h-5 text-red-700" />
               )}
             </div>
-            <div>
-              <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 flex-wrap">
-                <span>प्रोफ़ाइल सुरक्षा घेरा</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${isUnlocked ? "bg-emerald-200 text-emerald-800" : "bg-red-200 text-red-800"}`}>
-                  {isUnlocked ? "अनलॉक है • UNLOCKED" : "लॉक है • LOCKED"}
+            <div className="text-left leading-tight">
+              <h4 className="text-[10.5px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+                <span>सुरक्षा घेरा (Locker)</span>
+                <span className={`text-[8.5px] px-1.5 py-0.5 rounded-full font-black ${isUnlocked ? "bg-emerald-200 text-emerald-800" : "bg-red-200 text-red-800"}`}>
+                  {isUnlocked ? "अनलॉक" : "लॉक"}
                 </span>
               </h4>
-              <p className="text-[11px] text-slate-600 font-bold mt-1 leading-normal">
-                {isUnlocked 
-                  ? "आप फ़ोटो फ़्रेम पर क्लिक करके/खींचकर छवि बदल सकते हैं और सोशल मीडिया कड़ियाँ भी संपादित कर सकते हैं।" 
-                  : "डेवलपर्स की फोटो व सोशल मीडिया अनलॉक करने के लिए अनलॉक पासवर्ड दर्ज करें या 'UNLOCK' जादुई कोड चलाएं!"
-                }
+              <p className="text-[9.5px] text-slate-500 font-extrabold mt-0.5">
+                पिन प्रयुक्त करें या "UNLOCK" कोड चलाएं
               </p>
             </div>
           </div>
@@ -561,17 +578,17 @@ export default function DevelopersSection({ setMascotData }: DevelopersSectionPr
                 setPasswordValue("");
               }
             }}
-            className={`shrink-0 w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 border-b-4 hover:scale-102 shadow duration-150 ${
+            className={`shrink-0 w-full px-3 py-2 rounded-xl text-[10.5px] font-black transition cursor-pointer flex items-center justify-center gap-1 border-b-2 active:border-b-0 hover:scale-102 shadow-xs duration-100 ${
               isUnlocked
-                ? "bg-red-500 hover:bg-red-650 border-red-700 text-white active:border-b-0"
+                ? "bg-red-500 hover:bg-red-600 border-red-700 text-white"
                 : showPasswordInput 
-                  ? "bg-slate-500 hover:bg-slate-600 border-slate-700 text-white active:border-b-0"
-                  : "bg-emerald-600 hover:bg-emerald-755 border-emerald-800 text-white active:border-b-0"
+                  ? "bg-slate-500 hover:bg-slate-600 border-slate-700 text-white"
+                  : "bg-emerald-600 hover:bg-emerald-700 border-emerald-800 text-white"
             }`}
           >
             {isUnlocked ? (
               <>
-                <Lock className="w-4 h-4" />
+                <Lock className="w-3.5 h-3.5" />
                 <span>सुरक्षित लॉक करें 🔒</span>
               </>
             ) : showPasswordInput ? (
@@ -580,7 +597,7 @@ export default function DevelopersSection({ setMascotData }: DevelopersSectionPr
               </>
             ) : (
               <>
-                <Unlock className="w-4 h-4" />
+                <Unlock className="w-3.5 h-3.5" />
                 <span>अनलॉक फोटो 🔓</span>
               </>
             )}
@@ -870,18 +887,88 @@ export default function DevelopersSection({ setMascotData }: DevelopersSectionPr
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/50 flex flex-col justify-between min-h-16 relative">
                     <span className="text-[10px] text-slate-400 font-black block uppercase tracking-wide">संपर्क ईमेल:</span>
-                    <a 
-                      href={`mailto:${dev.email}`}
-                      className="text-indigo-600 font-black mt-0.5 block hover:underline truncate"
-                      title={dev.email}
-                    >
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3 h-3 inline-block" />
-                        <span>{dev.email}</span>
-                      </span>
-                    </a>
+                    {isUnlocked ? (
+                      editingEmailId === dev.id ? (
+                        <div className="flex items-center gap-1 mt-1">
+                          <input
+                            type="email"
+                            value={dev.id === "gautam" ? tempGautamEmail : tempKushagraEmail}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (dev.id === "gautam") {
+                                setTempGautamEmail(val);
+                              } else {
+                                setTempKushagraEmail(val);
+                              }
+                            }}
+                            className="bg-white border-2 border-amber-300 rounded-lg px-2 py-0.5 text-[9.5px] font-bold focus:outline-none w-full font-mono text-slate-800"
+                            placeholder="email@example.com"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newEmail = (dev.id === "gautam" ? tempGautamEmail : tempKushagraEmail).trim();
+                              if (newEmail === "") {
+                                alert("कृपया एक वैध ईमेल पता दर्ज़ करें!");
+                                return;
+                              }
+                              if (dev.id === "gautam") {
+                                setGautamEmail(newEmail);
+                                localStorage.setItem("gautam_email", newEmail);
+                              } else {
+                                setKushagraEmail(newEmail);
+                                localStorage.setItem("kushagra_email", newEmail);
+                              }
+                              setEditingEmailId(null);
+                              playSystemSound("success");
+                              setMascotData({
+                                mood: "happy",
+                                text: `सफलतापूर्वक! ${dev.name} का ईमेल आईडी अद्यतनित (updated) कर दिया गया है! 📧✨`
+                              });
+                            }}
+                            className="bg-emerald-600 text-white rounded px-2 py-1 cursor-pointer font-black text-[9.5px] hover:bg-emerald-700 shrink-0 border-b shadow-xs active:border-b-0"
+                            title="सहेजें (Save)"
+                          >
+                            ✓
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-1 mt-1">
+                          <span className="text-indigo-600 font-black truncate text-[10.5px] flex items-center gap-1">
+                            <Mail className="w-3.5 h-3.5 inline-block" />
+                            <span>{dev.email}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingEmailId(dev.id);
+                              if (dev.id === "gautam") {
+                                setTempGautamEmail(gautamEmail);
+                              } else {
+                                setTempKushagraEmail(kushagraEmail);
+                              }
+                            }}
+                            className="bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 cursor-pointer font-black text-[8px] uppercase shrink-0 active:scale-95 transition"
+                            title="ईमेल बदलें"
+                          >
+                            बदलें 📧
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <a 
+                        href={`mailto:${dev.email}`}
+                        className="text-indigo-600 font-black mt-0.5 block hover:underline truncate"
+                        title={dev.email}
+                      >
+                        <span className="flex items-center gap-1">
+                          <Mail className="w-3 h-3 inline-block" />
+                          <span>{dev.email}</span>
+                        </span>
+                      </a>
+                    )}
                   </div>
 
                   <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">

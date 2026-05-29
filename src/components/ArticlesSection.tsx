@@ -1,0 +1,446 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  BookOpen, 
+  Lock, 
+  Unlock, 
+  Youtube, 
+  Settings, 
+  Sparkles, 
+  Check, 
+  Eye, 
+  EyeOff,
+  Scale,
+  Shield,
+  Award
+} from "lucide-react";
+
+interface ArticleItem {
+  id: string;
+  number: string;
+  title: string;
+  description: string;
+  defaultYtUrl: string;
+  icon: string;
+  color: string;
+}
+
+interface ArticlesSectionProps {
+  setMascotData: (data: { mood: "happy" | "thinking" | "excited" | "proud" | "speaking" | "greeting"; text: string }) => void;
+}
+
+export default function ArticlesSection({ setMascotData }: ArticlesSectionProps) {
+  // Hardcoded permanent child-friendly articles list
+  const articles: ArticleItem[] = [
+    {
+      id: "art-1",
+      number: "अनुच्छेद १",
+      title: "भारत: राज्यों का संघ (Union of States)",
+      description: "हमारा प्यारा भारत विभिन्न राज्यों और संस्कृतियों का एक अटूट संघ है, जो विविधता में एकता का भव्य संदेश देता है।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=0fZDyK_tVFU",
+      icon: "🗺️",
+      color: "from-orange-500 to-amber-500 border-orange-200 bg-orange-50/50"
+    },
+    {
+      id: "art-14",
+      number: "अनुच्छेद १४",
+      title: "समानता का अधिकार (Equality before Law)",
+      description: "कानून की नजरों में सभी बराबर हैं! चाहे अमीर हो या गरीब, लड़का हो या लड़की, संविधान सबको एक समान सुरक्षा प्रदान करता है।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=FAtasE6P110",
+      icon: "⚖️",
+      color: "from-sky-500 to-indigo-500 border-sky-200 bg-sky-50/50"
+    },
+    {
+      id: "art-15",
+      number: "अनुच्छेद १५",
+      title: "भेदभाव का अंत (Prohibition of Discrimination)",
+      description: "किसी भी बच्चे के साथ धर्म, जाति, लिंग या जन्मस्थान के आधार पर स्कूल, खेल के मैदान या सार्वजनिक स्थलों पर भेदभाव नहीं किया जा सकता।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=FAtasE6P110",
+      icon: "🤝",
+      color: "from-teal-500 to-emerald-500 border-teal-200 bg-teal-50/50"
+    },
+    {
+      id: "art-19",
+      number: "अनुच्छेद १९",
+      title: "बोलने व विचार रखने की आजादी (Freedom of Speech)",
+      description: "सभी बच्चों को अपनी बात रखने, सवाल पूछने, चित्र बनाने, और शांतिपूर्ण ढंग से मित्र बनाने का पूरा संवैधानिक अधिकार है।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=7uV8-w8w6kE",
+      icon: "🗣️",
+      color: "from-rose-500 to-pink-500 border-rose-200 bg-rose-50/50"
+    },
+    {
+      id: "art-21",
+      number: "अनुच्छेद २१",
+      title: "जीवन और सम्मान का अधिकार (Right to Life & Liberty)",
+      description: "प्रत्येक व्यक्ति को सम्मान के साथ जीने, स्वच्छ हवा-पानी का आनंद लेने और सुरक्षित माहौल में स्वतंत्र रहने का मौलिक अधिकार प्राप्त है।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=W0q34N8P-bA",
+      icon: "🕊️",
+      color: "from-violet-500 to-purple-500 border-violet-200 bg-violet-50/50"
+    },
+    {
+      id: "art-21a",
+      number: "अनुच्छेद २१ए",
+      title: "मुफ़्त व अनिवार्य शिक्षा (Right to Education)",
+      description: "६ से १४ साल के सभी बच्चों के लिए स्कूली शिक्षा पाना उनका मौलिक अधिकार है। 'आधी रोटी खाएंगे, स्कूल जरूर जाएंगे!'",
+      defaultYtUrl: "https://www.youtube.com/watch?v=34d7U0f42vU",
+      icon: "🎒",
+      color: "from-amber-500 to-yellow-500 border-amber-200 bg-amber-50/55"
+    },
+    {
+      id: "art-32",
+      number: "अनुच्छेद ३२",
+      title: "संवैधानिक उपचार (Constitutional Remedies)",
+      description: "यदि कोई आपके मौलिक अधिकारों को छीनने की कोशिश करे, तो आप सीधे उच्चतम न्यायालय (Supreme Court) जाकर इंसाफ मांग सकते हैं।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=UqQ-n6_YtD4",
+      icon: "🏛️",
+      color: "from-purple-600 to-indigo-600 border-purple-200 bg-purple-50/50"
+    },
+    {
+      id: "art-51a",
+      number: "अनुच्छेद ५१ए",
+      title: "हमारे मूलभूत कर्तव्य (Fundamental Duties)",
+      description: "जैसे संविधान हमें अधिकार देता है, वैसे ही राष्ट्रगान का आदर करना, प्रकृति को स्वच्छ रखना और वैज्ञानिक दृष्टिकोण अपनाना हमारा पावन कर्तव्य है।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=e_wK_I-n1wU",
+      icon: "🇮🇳",
+      color: "from-emerald-600 to-lime-600 border-emerald-250 bg-emerald-50/50"
+    },
+    {
+      id: "art-326",
+      number: "अनुच्छेद ३२६",
+      title: "वयस्क मताधिकार (Universal Adult Suffrage)",
+      description: "१८ वर्ष या उससे बड़े प्रत्येक भारतीय नागरिक को बिना किसी भेदभाव के वोट देने और पसंदीदा सरकार चुनने का सर्वोच्च अधिकार प्राप्त है।",
+      defaultYtUrl: "https://www.youtube.com/watch?v=T_8V06qO58A",
+      icon: "🗳️",
+      color: "from-fuchsia-600 to-pink-600 border-fuchsia-200 bg-fuchsia-50/50"
+    }
+  ];
+
+  // Sync isUnlocked state with Developers locker (linked via localStorage)
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
+    return localStorage.getItem("developers_photos_unlocked") === "true";
+  });
+
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [showMskPassword, setShowMskPassword] = useState(false);
+
+  // Load custom YouTube links mapping from localStorage or fallback to default
+  const [urls, setUrls] = useState<Record<string, string>>(() => {
+    const loaded: Record<string, string> = {};
+    articles.forEach((art) => {
+      loaded[art.id] = localStorage.getItem(`samvidhan_article_yt_${art.id}`) || art.defaultYtUrl;
+    });
+    return loaded;
+  });
+
+  // Temporary editing state for URLs
+  const [tempUrls, setTempUrls] = useState<Record<string, string>>(() => ({ ...urls }));
+  // Message feedback
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
+  // Keep synced if unlocked changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const unlocked = localStorage.getItem("developers_photos_unlocked") === "true";
+      setIsUnlocked(unlocked);
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  useEffect(() => {
+    // When unlock state shifts, notify the mascot
+    if (isUnlocked) {
+      setMascotData({
+        mood: "excited",
+        text: "शानदार बच्चों! संविधान का सुरक्षा चक्र अनलॉक हो गया है। अब आप प्रत्येक अनुच्छेद के सामने अपनी पसंद की यूट्यूब (YouTube) वीडियो का लिंक बदल सकते हैं! 📖🔓"
+      });
+    } else {
+      setMascotData({
+        mood: "proud",
+        text: "प्यारे बच्चों! इस तालिका में भारत के महत्वपूर्ण अनुच्छेदों की सूची सुंदर एनिमेशन के साथ लगाईं गई है। सेटिंग्स सुरक्षा चक्र द्वारा सुरक्षित रूप से लॉक हैं! 🔏🛡️"
+      });
+    }
+  }, [isUnlocked, setMascotData]);
+
+  const handleSaveUrl = (artId: string) => {
+    const targetUrl = tempUrls[artId]?.trim() || "";
+    if (targetUrl !== "" && !targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
+      alert("कृपया एक वैध URL दर्ज़ करें जो http:// या https:// से शुरू होता हो!");
+      return;
+    }
+    
+    localStorage.setItem(`samvidhan_article_yt_${artId}`, targetUrl);
+    setUrls(prev => ({ ...prev, [artId]: targetUrl }));
+    setSavedMsg(`लिंक सहेजा गया! (Link saved for ${artId.toUpperCase()})`);
+    setTimeout(() => setSavedMsg(null), 3000);
+
+    // Audio feedback
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(698.46, ctx.currentTime + 0.1); // F5
+        gain.gain.setValueAtTime(0.04, ctx.currentTime);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      }
+    } catch {}
+  };
+
+  const handleVerifyPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordValue.trim() === "2026") {
+      setIsUnlocked(true);
+      setShowPasswordInput(false);
+      setPasswordError("");
+      setPasswordValue("");
+      localStorage.setItem("developers_photos_unlocked", "true");
+      // Notify other storage components about change
+      window.dispatchEvent(new Event("storage"));
+      
+      setMascotData({
+        mood: "excited",
+        text: "सफलता! लॉकर खुल गया है। अब आप यूट्यूब लिंक कड़ियों को सुचारू रूप से संपादित कर सकते हैं! 🔑✨"
+      });
+    } else {
+      setPasswordError("गलत सुरक्षा कोड! कृपया पुनः प्रयास करें।");
+      setMascotData({
+        mood: "thinking",
+        text: "ओह! यह पिन गलत है। कृपया पुनः सही ४-अंकों का पिन दर्ज़ करें।"
+      });
+    }
+  };
+
+  const handleToggleLock = () => {
+    if (isUnlocked) {
+      setIsUnlocked(false);
+      setShowPasswordInput(false);
+      setPasswordValue("");
+      setPasswordError("");
+      localStorage.setItem("developers_photos_unlocked", "false");
+      window.dispatchEvent(new Event("storage"));
+      setMascotData({
+        mood: "proud",
+        text: "संविधान अनुच्छेद प्रणाली को सुरक्षित रूप से वापस लॉक कर दिया गया है! 🔐"
+      });
+    } else {
+      setShowPasswordInput(p => !p);
+      setPasswordValue("");
+      setPasswordError("");
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-fadeIn font-sans text-left">
+      {/* Tab Banner */}
+      <div className="bg-gradient-to-r from-cyan-500 via-sky-600 to-indigo-700 text-white p-6 rounded-[32px] shadow-lg relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <span className="bg-cyan-100 text-cyan-900 border border-cyan-300 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider block w-fit">
+            📖 भारतीय संविधान के अनुच्छेद • Constitution Articles
+          </span>
+          <h2 className="text-xl md:text-3xl font-black drop-shadow-xs">
+            संविधान अनुच्छेद मार्गदर्शिका (Article Directory)
+          </h2>
+          <p className="text-xs text-cyan-100/90 font-bold leading-relaxed">
+            यहाँ हमारे पावन संविधान के महत्वपूर्ण अनुच्छेदों को बच्चों के लिए सरल शब्दों और सुंदर विज्ञापनों द्वारा प्रस्तुत किया गया है। साथ ही आगे दिए गए यूट्यूब बटन पर क्लिक करके सुंदर सचित्र व्याख्यात्मक वीडियो देख सकते हैं!
+          </p>
+        </div>
+        <div className="shrink-0 flex items-center justify-center">
+          <BookOpen className="w-16 h-16 text-cyan-100/30 animate-pulse hidden md:block" />
+        </div>
+      </div>
+
+      {/* COMPACT LOCKER - "लाकर का साइज़ छोटा रखो" & Hidden inputs */}
+      <div className="max-w-xs mx-auto bg-amber-50/90 border-2 border-amber-300 rounded-[22px] p-3 shadow-xs space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className={`p-1.5 rounded-lg shrink-0 ${isUnlocked ? "bg-emerald-100" : "bg-red-100"}`}>
+              {isUnlocked ? <Unlock className="w-3.5 h-3.5 text-emerald-700" /> : <Lock className="w-3.5 h-3.5 text-red-700" />}
+            </div>
+            <div className="min-w-0 text-left">
+              <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider leading-none">
+                URL संपादक
+              </h4>
+              <span className={`text-[8.5px] font-bold ${isUnlocked ? 'text-emerald-700' : 'text-slate-500'}`}>
+                {isUnlocked ? 'अनलॉक है • UNLOCKED' : 'लॉक है • LOCKED'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleToggleLock}
+            className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition cursor-pointer border-b-2 active:border-b-0 flex items-center gap-1 shrink-0 ${
+              isUnlocked 
+                ? "bg-red-500 hover:bg-red-650 text-white border-red-700" 
+                : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800"
+            }`}
+          >
+            {isUnlocked ? "लॉक 🔐" : "अनलॉक 🔓"}
+          </button>
+        </div>
+
+        {/* Compact password entry - masked */}
+        {!isUnlocked && showPasswordInput && (
+          <motion.form 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            onSubmit={handleVerifyPassword}
+            className="pt-2 border-t border-amber-200 flex flex-col gap-1.5 text-left"
+          >
+            <label className="text-[9px] font-black text-amber-900 leading-none">सुरक्षा पिन दर्ज करें:</label>
+            <div className="flex gap-1">
+              <div className="relative flex-1 flex items-center bg-white border border-amber-300 focus-within:border-amber-500 rounded-lg px-2 py-1">
+                <input
+                  type={showMskPassword ? "text" : "password"}
+                  value={passwordValue}
+                  onChange={(e) => {
+                    setPasswordValue(e.target.value);
+                    if (passwordError) setPasswordError("");
+                  }}
+                  placeholder="सुरक्षित पिन..."
+                  className="w-full bg-transparent text-[10px] font-bold text-slate-800 focus:outline-none font-mono"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMskPassword(!showMskPassword)}
+                  className="p-0.5 hover:bg-amber-100 rounded text-amber-800"
+                >
+                  {showMskPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                </button>
+              </div>
+              <button
+                type="submit"
+                className="bg-purple-600 text-white font-black text-[9px] px-2.5 py-1 rounded-lg hover:bg-purple-700 cursor-pointer"
+              >
+                खोलें
+              </button>
+            </div>
+            {passwordError && (
+              <span className="text-[8px] text-red-650 font-bold">⚠️ {passwordError}</span>
+            )}
+          </motion.form>
+        )}
+      </div>
+
+      {savedMsg && (
+        <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 text-xs px-3 py-1.5 rounded-xl font-bold flex items-center justify-center gap-1.5 max-w-sm mx-auto animate-pulse">
+          <Check className="w-4 h-4 shrink-0" />
+          <span>{savedMsg}</span>
+        </div>
+      )}
+
+      {/* STAGGERED MOTION LIST OF ARTICLES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {articles.map((art, index) => {
+          const customUrl = urls[art.id];
+          return (
+            <motion.div
+              key={art.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              whileHover={{ scale: 1.015, translateY: -2 }}
+              className={`p-5 rounded-[28px] border-2 shadow-xs hover:shadow-md transition-all relative overflow-hidden flex flex-col justify-between ${art.color}`}
+            >
+              <div className="space-y-3.5">
+                {/* Graphics Header Row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl p-1.5 bg-white/80 rounded-xl shadow-xs border border-white/50">{art.icon}</span>
+                    <span className="text-[10px] font-black bg-gradient-to-r from-cyan-600 to-indigo-600 text-white px-2.5 py-0.5 rounded-full select-none">
+                      {art.number}
+                    </span>
+                  </div>
+                  
+                  {/* Miniature decorative sticker */}
+                  <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-200">
+                    <Sparkles className="w-3 h-3 text-indigo-400 animate-spin" />
+                  </div>
+                </div>
+
+                {/* Article Name */}
+                <div className="space-y-1">
+                  <h3 className="text-base font-black text-slate-850 leading-tight">
+                    {art.title}
+                  </h3>
+                  <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                    {art.description}
+                  </p>
+                </div>
+              </div>
+
+              {/* Interaction Panel */}
+              <div className="mt-5 pt-3.5 border-t border-slate-200/60 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-4">
+                  {/* Active YouTube Indicator */}
+                  <span className="text-[9.5px] text-slate-400 font-bold font-mono truncate" title={customUrl}>
+                    लिंक: {customUrl ? customUrl.substring(0, 30) + "...": "default"}
+                  </span>
+
+                  {/* YouTube Action - CLICK HERE */}
+                  <a
+                    href={customUrl || art.defaultYtUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-red-650 hover:bg-red-700 text-white font-black text-xs px-4 py-2 rounded-xl transition duration-150 border-b-2 border-red-850 active:border-b-0 cursor-pointer flex items-center gap-1 shadow-xs shrink-0 self-end"
+                  >
+                    <Youtube className="w-4 h-4 text-white fill-current" />
+                    <span>यहाँ क्लिक करें (Click Here) ➔</span>
+                  </a>
+                </div>
+
+                {/* ADMIN VIDEO EDITOR FIELD IF UNLOCKED */}
+                <AnimatePresence>
+                  {isUnlocked && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-white/85 p-2.5 border border-amber-250 rounded-xl space-y-2 mt-1.5"
+                    >
+                      <label className="text-[9.5px] font-extrabold text-amber-955 block text-left">
+                        यूट्यूब कूट संपादित करें (Edit YouTube Link):
+                      </label>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={tempUrls[art.id] || ""}
+                          onChange={(e) => setTempUrls({ ...tempUrls, [art.id]: e.target.value })}
+                          placeholder="https://www.youtube.com/watch?v=..."
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10.5px] font-bold text-slate-800 font-mono focus:outline-none focus:border-amber-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveUrl(art.id)}
+                          className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[9.5px] px-2.5 py-1 rounded-lg border-b-2 border-amber-700 active:border-b-0 transition flex items-center gap-1 shrink-0 cursor-pointer"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                          <span>सहेजें</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+            </motion.div>
+          );
+        })}
+      </div>
+
+    </div>
+  );
+}

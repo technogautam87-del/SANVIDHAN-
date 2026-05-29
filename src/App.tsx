@@ -15,6 +15,7 @@ import QuizSection from "./components/QuizSection";
 import PreambleSection from "./components/PreambleSection";
 import SamvidhanMitra from "./components/SamvidhanMitra";
 import DevelopersSection from "./components/DevelopersSection";
+import ArticlesSection from "./components/ArticlesSection";
 import { MascotMood } from "./types";
 
 export default function App() {
@@ -86,6 +87,7 @@ export default function App() {
     { id: "history", label: "🕒 इतिहास", color: "hover:border-blue-400 text-slate-700 hover:text-blue-600 font-bold" },
     { id: "preamble", label: "📜 उद्देशिका", color: "hover:border-indigo-400 text-slate-700 hover:text-indigo-600 font-bold" },
     { id: "features", label: "🔰 विशेषताएँ", color: "hover:border-emerald-400 text-slate-700 hover:text-emerald-600 font-bold" },
+    { id: "articles", label: "📖 संविधान अनुच्छेद", color: "hover:border-cyan-400 text-slate-700 hover:text-cyan-600 font-bold" },
     { id: "rights", label: "⚖️ अधिकार खेल", color: "hover:border-pink-400 text-slate-700 hover:text-pink-600 font-bold" },
     { id: "duties", label: "🎉 कर्तव्य बोर्ड", color: "hover:border-yellow-400 text-slate-700 hover:text-yellow-600 font-bold" },
     { id: "election", label: "🗳️ चुनाव बूथ", color: "hover:border-green-400 text-slate-700 hover:text-green-600 font-bold" },
@@ -97,6 +99,7 @@ export default function App() {
     switch (activeTab) {
       case "history": return "border-blue-400 shadow-[0_12px_0_#3b82f6]";
       case "preamble": return "border-indigo-400 shadow-[0_12px_0_#6366f1]";
+      case "articles": return "border-cyan-400 shadow-[0_12px_0_#06b6d4]";
       case "rights": return "border-pink-500 shadow-[0_12px_0_#ec4899]";
       case "duties": return "border-yellow-400 shadow-[0_12px_0_#facc15]";
       case "election": return "border-green-500 shadow-[0_12px_0_#22c55e]";
@@ -225,6 +228,9 @@ export default function App() {
           )}
           {activeTab === "features" && (
             <FeaturesSection onNavigate={setActiveTab} setMascotData={handleSetMascotData} />
+          )}
+          {activeTab === "articles" && (
+            <ArticlesSection setMascotData={handleSetMascotData} />
           )}
           {activeTab === "rights" && (
             <RightsSection setMascotData={handleSetMascotData} incrementScore={incrementScore} />

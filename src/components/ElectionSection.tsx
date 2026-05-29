@@ -38,6 +38,65 @@ interface Voter {
   pin: string;
 }
 
+function FlowerShower() {
+  const [flowers, setFlowers] = useState<{ id: number; left: string; duration: string; delay: string; size: string; emoji: string }[]>([]);
+
+  useEffect(() => {
+    const emojis = ["🌸", "🌹", "🌷", "🌺", "🌻", "🌼", "🏵️", "💮"];
+    const arr = Array.from({ length: 45 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100 + "%",
+      duration: (Math.random() * 3.5 + 4) + "s",
+      delay: (Math.random() * 5) + "s",
+      size: (Math.random() * 20 + 16) + "px",
+      emoji: emojis[Math.floor(Math.random() * emojis.length)]
+    }));
+    setFlowers(arr);
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        @keyframes flowerFallAnimation {
+          0% {
+            transform: translateY(-20px) rotate(0deg) translateX(0);
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          90% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(105vh) rotate(720deg) translateX(50px);
+            opacity: 0;
+          }
+        }
+        .flower-shower-item {
+          animation: flowerFallAnimation linear infinite;
+        }
+      `}</style>
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+        {flowers.map((f) => (
+          <div
+            key={f.id}
+            className="absolute top-[-40px] flower-shower-item"
+            style={{
+              left: f.left,
+              animationDuration: f.duration,
+              animationDelay: f.delay,
+              fontSize: f.size,
+            }}
+          >
+            {f.emoji}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 interface ElectionSectionProps {
   setMascotData: (data: { mood: "happy" | "thinking" | "excited" | "proud" | "speaking" | "greeting"; text: string }) => void;
   incrementScore: (points: number) => void;
@@ -1852,12 +1911,33 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
         {/* ================= STEP 4: CELEBRATION RESULT OUTCOME ================= */}
         {step === "winner" && (
           <div className="space-y-6">
+            <FlowerShower />
             
             {/* Celebration title frame */}
             {(() => {
               const mainWinner = getWinner();
               return (
                 <div className="space-y-6">
+                  {/* BEAUTIFUL CONGRATULATORY GRAPHIC BANNER */}
+                  <div className="relative overflow-hidden bg-gradient-to-r from-amber-100 via-amber-50 to-orange-100 border-4 border-amber-400 p-6 rounded-[35px] text-center shadow-xl space-y-4 max-w-2xl mx-auto">
+                    <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-250/20 via-transparent to-transparent opacity-80"></div>
+                    <span className="text-6xl animate-pulse inline-block">👑</span>
+                    <h3 className="text-2xl md:text-3xl font-black text-amber-900 tracking-tight leading-none">
+                      हार्दिक बधाई एवं शुभकामनाएँ! 🎉
+                    </h3>
+                    <div className="text-md font-black bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent uppercase tracking-wider">
+                      ✨ नवनिर्वाचित बाल प्रधानमंत्री (Bal Pradhan Mantri) ✨
+                    </div>
+                    <p className="text-xs text-slate-700 font-extrabold max-w-md mx-auto leading-relaxed">
+                      प्रिय <strong>{mainWinner.name}</strong>, आपको लोकसभा बाल चुनाव २०२६ में ऐतिहासिक जीत हासिल हुई है! लोकतांत्रिक मर्यादा के साथ बाल मंत्रिमण्डल के संवर्धन का आपका घोषणापत्र अब पूर्णतया लागू होगा।
+                    </p>
+                    <div className="flex gap-2 justify-center items-center font-black text-[10px] text-orange-900 bg-orange-100 border border-orange-200 px-3.5 py-1.5 rounded-full w-fit mx-auto select-none shadow-inner animate-pulse">
+                      <span>🌸 संसद संप्रभु: {mainWinner.name}</span>
+                      <span className="text-amber-500">•</span>
+                      <span>🗳️ चुनाव चिन्ह: {mainWinner.symbol}</span>
+                    </div>
+                  </div>
+
                   <div className="text-center bg-gradient-to-br from-emerald-500 via-teal-600 to-green-700 text-white p-6 rounded-[35px] shadow-2xl relative overflow-hidden space-y-4 border-b-8 border-green-800">
                     
                     {/* Floating confetti animations */}
@@ -2539,6 +2619,9 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                               <body>
                                 <div class="space-y-6">
                                   ${printContent}
+                                </div>
+                                <div style="margin-top: 40px; text-align: center; border-top: 2px dashed #cbd5e1; padding-top: 15px; font-size: 11px; color: #475569; font-weight: bold; font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 1px;">
+                                  made by C.S. Gautam and Kushagra Gaur
                                 </div>
                                 <button class="print-btn" onclick="window.print()">
                                   🖨️ प्रिंट करें व पीडीएफ (PDF) सेव करें
