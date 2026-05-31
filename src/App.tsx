@@ -17,7 +17,10 @@ import SamvidhanMitra from "./components/SamvidhanMitra";
 import DevelopersSection from "./components/DevelopersSection";
 import ArticlesSection from "./components/ArticlesSection";
 import SignLanguageSection from "./components/SignLanguageSection";
+import AdminPanelSection from "./components/AdminPanelSection";
 import { MascotMood } from "./types";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "./lib/firebase";
 
 export default function App() {
   const [activeTab, setActiveTabInternal] = useState<string>("home");
@@ -65,6 +68,83 @@ export default function App() {
     window.addEventListener("click", handleGlobalClick);
     return () => {
       window.removeEventListener("click", handleGlobalClick);
+    };
+  }, []);
+
+  // Real-time globally synced Firebase settings (articles and developers info)
+  useEffect(() => {
+    // Listen to /settings/articles
+    const unsubscribeArticles = onSnapshot(doc(db, "settings", "articles"), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const customUrls = data.customUrls || {};
+        const clickCounts = data.clickCounts || {};
+
+        // Sync into localStorage
+        Object.entries(customUrls).forEach(([artId, val]) => {
+          if (val) {
+            localStorage.setItem(`samvidhan_article_yt_${artId}`, String(val));
+          } else {
+            localStorage.removeItem(`samvidhan_article_yt_${artId}`);
+          }
+        });
+
+        Object.entries(clickCounts).forEach(([artId, count]) => {
+          localStorage.setItem(`samvidhan_article_clicks_${artId}`, String(count));
+        });
+
+        // Fire global memory event
+        window.dispatchEvent(new Event("storage"));
+      }
+    }, (error) => {
+      console.warn("Firestore articles listener subscription error:", error);
+    });
+
+    // Listen to /settings/developers
+    const unsubscribeDevelopers = onSnapshot(doc(db, "settings", "developers"), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        
+        // Gautam settings sync
+        const gKeys = [
+          "gautam_photo",
+          "gautam_email",
+          "gautam_social_github",
+          "gautam_social_linkedin",
+          "gautam_social_youtube",
+          "gautam_social_portfolio"
+        ];
+        gKeys.forEach((key) => {
+          if (data[key] !== undefined) {
+            localStorage.setItem(key, String(data[key]));
+          }
+        });
+
+        // Kushagra settings sync
+        const kKeys = [
+          "kushagra_photo",
+          "kushagra_email",
+          "kushagra_social_github",
+          "kushagra_social_linkedin",
+          "kushagra_social_youtube",
+          "kushagra_social_portfolio"
+        ];
+        kKeys.forEach((key) => {
+          if (data[key] !== undefined) {
+            localStorage.setItem(key, String(data[key]));
+          }
+        });
+
+        // Fire global memory event
+        window.dispatchEvent(new Event("storage"));
+      }
+    }, (error) => {
+      console.warn("Firestore developers listener subscription error:", error);
+    });
+
+    return () => {
+      unsubscribeArticles();
+      unsubscribeDevelopers();
     };
   }, []);
 
@@ -150,7 +230,8 @@ export default function App() {
     { id: "duties", label: "🎉 कर्तव्य बोर्ड", color: "hover:border-yellow-400 text-slate-700 hover:text-yellow-600 font-bold" },
     { id: "election", label: "🗳️ चुनाव बूथ", color: "hover:border-green-400 text-slate-700 hover:text-green-600 font-bold" },
     { id: "quiz", label: "🎯 सीखो व खेलो", color: "hover:border-amber-400 text-slate-700 hover:text-amber-600 font-bold" },
-    { id: "developers", label: "💻 डेवलपर्स", color: "hover:border-purple-400 text-slate-700 hover:text-purple-600 font-bold" }
+    { id: "developers", label: "💻 डेवलपर्स", color: "hover:border-purple-400 text-slate-700 hover:text-purple-600 font-bold" },
+    { id: "admin", label: "🔐 एडमिन पैनल", color: "hover:border-rose-400 text-slate-750 hover:text-rose-600 font-bold" }
   ];
 
   const getTabBorderColor = () => {
@@ -164,6 +245,7 @@ export default function App() {
       case "election": return "border-green-500 shadow-[0_12px_0_#22c55e]";
       case "quiz": return "border-amber-500 shadow-[0_12px_0_#f59e0b]";
       case "developers": return "border-purple-500 shadow-[0_12px_0_#a855f7]";
+      case "admin": return "border-rose-500 shadow-[0_12px_0_#f43f5e]";
       default: return "border-orange-400 shadow-[0_12px_0_#f97316]";
     }
   };
@@ -308,6 +390,9 @@ export default function App() {
           )}
           {activeTab === "developers" && (
             <DevelopersSection setMascotData={handleSetMascotData} />
+          )}
+          {activeTab === "admin" && (
+            <AdminPanelSection setMascotData={handleSetMascotData} />
           )}
         </div>
 

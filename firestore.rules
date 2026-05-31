@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Safety and Identity Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.email_verified == true && 
+             request.auth.token.email == 'technogautam87@gmail.com';
+    }
+
+    // 3. Settings Collection rules
+    match /settings/{settingId} {
+      allow read: if true; 
+      allow write: if isAdmin();
+    }
+  }
+}

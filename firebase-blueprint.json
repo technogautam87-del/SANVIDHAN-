@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "ArticlesSetting": {
+      "title": "ArticlesSetting",
+      "description": "Global map of customized video URLs and click count stats for all articles",
+      "type": "object",
+      "properties": {
+        "customUrls": {
+          "type": "object",
+          "description": "Key-value map of articleId to its custom YouTube URL"
+        },
+        "clickCounts": {
+          "type": "object",
+          "description": "Key-value map of articleId to click counts"
+        }
+      }
+    },
+    "DevelopersProfile": {
+      "title": "DevelopersProfile",
+      "description": "Global custom biographies and social profile links for the developer team",
+      "type": "object",
+      "properties": {
+        "gautam_photo": { "type": "string" },
+        "gautam_email": { "type": "string" },
+        "gautam_social_github": { "type": "string" },
+        "gautam_social_linkedin": { "type": "string" },
+        "gautam_social_youtube": { "type": "string" },
+        "gautam_social_portfolio": { "type": "string" },
+        "kushagra_photo": { "type": "string" },
+        "kushagra_email": { "type": "string" },
+        "kushagra_social_github": { "type": "string" },
+        "kushagra_social_linkedin": { "type": "string" },
+        "kushagra_social_youtube": { "type": "string" },
+        "kushagra_social_portfolio": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/settings/articles": {
+      "schema": "ArticlesSetting",
+      "description": "Stores custom video configurations and clicks"
+    },
+    "/settings/developers": {
+      "schema": "DevelopersProfile",
+      "description": "Stores contact links and photos of Gautam & Kushagra"
+    }
+  }
+}
