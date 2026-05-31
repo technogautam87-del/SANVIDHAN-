@@ -6,7 +6,8 @@ import {
   HelpCircle, 
   Volume2, 
   Award,
-  Video
+  Video,
+  ExternalLink
 } from "lucide-react";
 
 interface SignTerm {
@@ -127,7 +128,6 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [composedSentence, setComposedSentence] = useState<string[]>([]);
   const [successScoreClaimed, setSuccessScoreClaimed] = useState<string | null>(null);
 
   const [customVideos, setCustomVideos] = useState<Record<string, { id: string; title: string; url: string }[]>>({});
@@ -164,17 +164,7 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
     }
   }, [selectedTerm, customVideos, termVideos, activeVideoId]);
 
-  // Alphabet sign indicators (Interactive standard Indian fingerspelling chart helper)
-  const fingerspellingAlphabets = [
-    { letter: "A", gesture: "✊ (मुट्ठी बंद, अंगूठा बगल में)" },
-    { letter: "B", gesture: "✋ (हथेली खुली, उंगलियां सटी)" },
-    { letter: "C", gesture: "👌 (उंगलियों को आधा मोड़कर 'C' आकार)" },
-    { letter: "D", gesture: "☝️ (तर्जनी आसमान की तरफ, बाकी बंद)" },
-    { letter: "E", gesture: "✊ (उंगलियों को मोड़कर अंगूठे पर रखना)" },
-    { letter: "F", gesture: "👌 (तर्जनी और अंगूठे को सटाकर गोल)" },
-    { letter: "G", gesture: "👉 (तर्जनी और अंगूठा समानांतर बाहर की ओर)" },
-    { letter: "H", gesture: "👉 (तर्जनी + मध्यमा दोनों बाहर की ओर)" }
-  ];
+
 
   useEffect(() => {
     setMascotData({
@@ -210,28 +200,7 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
     }, 4000);
   };
 
-  const handleAddToSentence = (word: string) => {
-    if (composedSentence.length >= 4) {
-      setMascotData({
-        mood: "thinking",
-        text: "आपका वाक्य काफी बड़ा हो गया है! वाक्य को साफ़ करके नया वाक्य बनाएं।"
-      });
-      return;
-    }
-    setComposedSentence(prev => [...prev, word]);
-    
-    // Auto speech helper text
-    try {
-      const utterance = new SpeechSynthesisUtterance(word);
-      utterance.lang = "hi-IN";
-      utterance.rate = 0.95;
-      window.speechSynthesis.speak(utterance);
-    } catch {}
-  };
 
-  const clearSentence = () => {
-    setComposedSentence([]);
-  };
 
   return (
     <div className="space-y-10">
@@ -329,28 +298,32 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
             })}
           </div>
 
-          {/* Banner for Fingerspelling Alphabet */}
-          <div className="bg-slate-900 text-slate-100 p-5 rounded-[28px] border-2 border-slate-800 space-y-4 shadow-sm text-left">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🖐️</span>
+          {/* ISLRTC External Link Card */}
+          <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white p-6 rounded-[32px] border-2 border-indigo-500/25 space-y-4 shadow-xl text-left relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
+            <div className="flex items-center gap-2.5">
+              <span className="text-3xl filter drop-shadow">🌐</span>
               <div>
-                <h4 className="font-black text-[12px] uppercase text-slate-300 tracking-wider">
-                  भारतीय साइन चार्ट (ISL Symbols)
+                <h4 className="font-extrabold text-[13px] text-indigo-350 tracking-wider">
+                  आईएसएलआरटीसी • ISLRTC
                 </h4>
-                <p className="text-[10px] text-slate-500 font-extrabold">मूलभूत वर्णमाला के इशारे</p>
+                <p className="text-[10px] text-slate-400 font-extrabold uppercase">आधिकारिक सरकारी संस्थान</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-[10.5px]">
-              {fingerspellingAlphabets.map((item) => (
-                <div key={item.letter} className="bg-slate-950 p-2 rounded-xl border border-slate-850 flex items-center gap-2">
-                  <span className="font-mono bg-teal-500 text-slate-950 font-black px-2 py-0.5 rounded-md">
-                    {item.letter}
-                  </span>
-                  <span className="font-bold text-slate-400 text-[10px] truncate">{item.gesture}</span>
-                </div>
-              ))}
-            </div>
+            <p className="text-xs text-slate-350 font-semibold leading-relaxed">
+              भारतीय सांकेतिक भाषा अनुसंधान और प्रशिक्षण केंद्र (ISLRTC) भारत सरकार का प्रमुख संस्थान है जो देश में सांकेतिक भाषा के विकास, शोध और प्रशिक्षण के लिए कार्य करता है।
+            </p>
+
+            <a
+              href="https://www.islrtc.nic.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-teal-400 to-indigo-500 hover:opacity-90 text-slate-950 font-black text-xs py-3.5 px-4 rounded-xl shadow-md transition transform active:scale-95 text-center mt-2 group cursor-pointer"
+            >
+              <span>ISLRTC वेबसाइट पर जाएं</span>
+              <ExternalLink className="w-3.5 h-3.5 text-slate-950 group-hover:translate-x-0.5 transition-transform" strokeWidth={3} />
+            </a>
           </div>
         </div>
 
@@ -429,25 +402,7 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
                 </div>
               </div>
 
-              {/* Step By Step Instructions Table */}
-              <div className="space-y-3 text-left">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                  💡 कदम-दर-कदम अभ्यास प्रक्रिया (Step-by-Step Training):
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {selectedTerm.stepByStepHindi.map((step, idx) => (
-                    <div key={idx} className="bg-slate-50 border-2 border-slate-200 rounded-[20px] p-4 space-y-2 hover:border-teal-300 transition-colors">
-                      <div className="flex items-center gap-1.5">
-                        <span className="bg-teal-500 text-white font-extrabold text-[11px] rounded-lg w-5 h-5 flex items-center justify-center">
-                          {idx + 1}
-                        </span>
-                        <span className="text-[10px] text-teal-600 font-extrabold uppercase font-mono">चरण (Step)</span>
-                      </div>
-                      <p className="text-xs text-slate-700 font-bold leading-relaxed">{step}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Step-by-step training was removed as per request */}
 
               {/* YouTube Sign Training Video for realistic learning experience */}
               <div className="border-2 border-slate-200 rounded-[28px] overflow-hidden bg-slate-50 p-4 space-y-4">
@@ -495,76 +450,7 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
             </motion.div>
           </AnimatePresence>
 
-          {/* 🧩 Interactive Sign Composer Game Box (वाक्य रचना खेल) */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-100 border-4 border-amber-300 rounded-[36px] p-6 md:p-8 space-y-6 shadow-sm text-left">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b-2 border-amber-200/50 pb-4">
-              <div className="flex items-center gap-3">
-                <span className="text-4xl animate-bounce">💬</span>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">वाक्य निर्माता खेल (Compose sign sentences)</h3>
-                  <p className="text-xs text-slate-550 font-bold">शब्दावली के पत्तों को आपस में जोड़कर नया कथन बनाएं और सांकेतिक आवाज़ सुनें!</p>
-                </div>
-              </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={clearSentence}
-                  className="px-3.5 py-1.5 bg-white hover:bg-rose-50 border-2 border-slate-250 text-slate-650 hover:text-rose-600 rounded-xl text-[10px] font-black cursor-pointer select-none transition-all"
-                >
-                  रीसेट करें (Reset)
-                </button>
-              </div>
-            </div>
-
-            {/* Display Board for sentence composed */}
-            <div className="bg-white/95 border-3 border-dashed border-slate-300 rounded-[24px] p-5 min-h-[90px] flex flex-wrap gap-2 items-center justify-center shadow-inner">
-              {composedSentence.length === 0 ? (
-                <div className="text-center py-2 text-slate-400">
-                  <span className="text-2xl block mb-1">👈👇</span>
-                  <p className="text-[10px] font-black uppercase tracking-wider">नीचे दी गई शब्दावली से शब्द चुनें</p>
-                </div>
-              ) : (
-                composedSentence.map((word, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="bg-indigo-600 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-sm border-2 border-indigo-400 select-none cursor-pointer"
-                  >
-                    <span>{word}</span>
-                    <span className="text-[9px] bg-indigo-800 text-white p-0.5 rounded-full block">🤟</span>
-                  </motion.div>
-                ))
-              )}
-            </div>
-
-            {/* Tap triggers lists */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-black text-amber-800 tracking-wider block uppercase">शब्दावली चयन बॉक्स (Click to Add Word):</span>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  "समानता", 
-                  "हमारा", 
-                  "अधिकार हैं", 
-                  "कर्तव्य", 
-                  "सबसे बड़ा है", 
-                  "संविधान", 
-                  "सर्वोपरी है", 
-                  "भारत",
-                  "एक महान",
-                  "लोकतंत्र है"
-                ].map((word) => (
-                  <button
-                    key={word}
-                    onClick={() => handleAddToSentence(word)}
-                    className="bg-white hover:bg-indigo-50 border-2 border-amber-300 hover:border-indigo-400 font-extrabold text-slate-800 text-[11px] px-3.5 py-2 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
-                  >
-                    🚀 {word}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
 
         </div>
 
