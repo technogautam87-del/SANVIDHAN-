@@ -142,9 +142,22 @@ export default function App() {
       console.warn("Firestore developers listener subscription error:", error);
     });
 
+    // Listen to /settings/sign_videos
+    const unsubscribeSignVideos = onSnapshot(doc(db, "settings", "sign_videos"), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        localStorage.setItem("samvidhan_sign_videos", JSON.stringify(data));
+        // Fire global memory event
+        window.dispatchEvent(new Event("storage"));
+      }
+    }, (error) => {
+      console.warn("Firestore sign_videos listener subscription error:", error);
+    });
+
     return () => {
       unsubscribeArticles();
       unsubscribeDevelopers();
+      unsubscribeSignVideos();
     };
   }, []);
 

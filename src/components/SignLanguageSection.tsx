@@ -130,6 +130,40 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
   const [composedSentence, setComposedSentence] = useState<string[]>([]);
   const [successScoreClaimed, setSuccessScoreClaimed] = useState<string | null>(null);
 
+  const [customVideos, setCustomVideos] = useState<Record<string, { id: string; title: string; url: string }[]>>({});
+  const [activeVideoId, setActiveVideoId] = useState<string>("default");
+
+  useEffect(() => {
+    const handleSync = () => {
+      const stored = localStorage.getItem("samvidhan_sign_videos");
+      if (stored) {
+        try {
+          setCustomVideos(JSON.parse(stored));
+        } catch (e) {
+          console.error("Error parsing sign language videos:", e);
+        }
+      }
+    };
+    handleSync();
+    window.addEventListener("storage", handleSync);
+    return () => window.removeEventListener("storage", handleSync);
+  }, []);
+
+  const termVideos = customVideos[selectedTerm.id] && customVideos[selectedTerm.id].length > 0
+    ? customVideos[selectedTerm.id]
+    : [{ id: "default", title: "प्रमुख सांकेतिक पाठ (Official Guide)", url: selectedTerm.videoUrlPlaceholder }];
+
+  const activeVideo = termVideos.find(v => v.id === activeVideoId) || termVideos[0];
+
+  useEffect(() => {
+    if (termVideos.length > 0) {
+      const exists = termVideos.some(v => v.id === activeVideoId);
+      if (!exists) {
+        setActiveVideoId(termVideos[0].id);
+      }
+    }
+  }, [selectedTerm, customVideos, termVideos, activeVideoId]);
+
   // Alphabet sign indicators (Interactive standard Indian fingerspelling chart helper)
   const fingerspellingAlphabets = [
     { letter: "A", gesture: "✊ (मुट्ठी बंद, अंगूठा बगल में)" },
@@ -416,21 +450,41 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
               </div>
 
               {/* YouTube Sign Training Video for realistic learning experience */}
-              <div className="border-2 border-slate-200 rounded-[28px] overflow-hidden bg-slate-50 p-4 space-y-3">
-                <div className="flex items-center gap-2 justify-between">
+              <div className="border-2 border-slate-200 rounded-[28px] overflow-hidden bg-slate-50 p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-red-500 text-xl">📺</span>
                     <h4 className="font-black text-xs text-slate-800">वीडियो से सीखें: भारतीय सांकेतिक भाषा (ISL Academy Guide)</h4>
                   </div>
-                  <span className="text-[9.5px] bg-teal-50 border border-teal-200 text-teal-700 font-black px-2 py-0.5 rounded-md">
-                    LIVE SIGN LESSON
+                  <span className="text-[9.5px] bg-teal-50 border border-teal-200 text-teal-700 font-black px-2 py-0.5 rounded-md self-start sm:self-auto">
+                    LIVE SIGN LESSON: {activeVideo.title}
                   </span>
                 </div>
+
+                {termVideos.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-slate-100 rounded-2xl border border-slate-200">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block w-full mb-1 pl-1">चुनें अन्य सहायक वीडियो (Alternate Sign Guides):</span>
+                    {termVideos.map((vid) => (
+                      <button
+                        key={vid.id}
+                        type="button"
+                        onClick={() => setActiveVideoId(vid.id)}
+                        className={`px-3 py-1.5 text-[10.5px] font-bold rounded-xl transition-all cursor-pointer border shadow-xs ${
+                          activeVideoId === vid.id
+                            ? "bg-teal-500 text-white border-teal-600 scale-[1.02]"
+                            : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        {vid.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 
-                <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-inner border border-slate-350">
+                <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-inner border border-slate-350 bg-slate-900">
                   <iframe
                     className="w-full h-full"
-                    src={`${selectedTerm.videoUrlPlaceholder}?controls=1&modestbranding=1`}
+                    src={`${activeVideo.url}?controls=1&modestbranding=1`}
                     title="Indian Sign Language Training Video"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen

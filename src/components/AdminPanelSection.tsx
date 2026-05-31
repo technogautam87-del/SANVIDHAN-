@@ -28,7 +28,11 @@ import {
   Terminal,
   Camera,
   Phone,
-  User2
+  User2,
+  Trash2,
+  Edit3,
+  Plus,
+  Languages
 } from "lucide-react";
 import { ARTICLES_DATA, ArticleItem } from "./ArticlesSection";
 import { doc, setDoc } from "firebase/firestore";
@@ -48,7 +52,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
 
   // Sub-tab state
-  const [adminSubTab, setAdminSubTab] = useState<"articles" | "developers">("articles");
+  const [adminSubTab, setAdminSubTab] = useState<"articles" | "developers" | "signlanguage">("articles");
 
   // Saved credentials in storage (or default: admin / admin)
   const [adminId, setAdminId] = useState("admin");
@@ -91,6 +95,14 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
 
   // Edit action message
   const [saveMessage, setSaveMessage] = useState<Record<string, string>>({});
+
+  // Sign language video editing states
+  const [customSignVideos, setCustomSignVideos] = useState<Record<string, { id: string; title: string; url: string }[]>>({});
+  const [editingTermId, setEditingTermId] = useState<string>("samvidhan");
+  const [signVideoTitleInput, setSignVideoTitleInput] = useState<string>("");
+  const [signVideoUrlInput, setSignVideoUrlInput] = useState<string>("");
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [signVideoFeedback, setSignVideoFeedback] = useState<string>("");
 
   // Helper inside panel to parse and generate direct Google Drive image links
   const getDirectImageUrl = (url: string | null): string => {
@@ -203,6 +215,23 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
       });
     }
   }, [isAuthenticated, setMascotData]);
+
+  // Load and sync Custom Sign Videos
+  useEffect(() => {
+    const handleSyncSignVideos = () => {
+      const stored = localStorage.getItem("samvidhan_sign_videos");
+      if (stored) {
+        try {
+          setCustomSignVideos(JSON.parse(stored));
+        } catch (e) {
+          console.error("Error parsing samvidhan_sign_videos:", e);
+        }
+      }
+    };
+    handleSyncSignVideos();
+    window.addEventListener("storage", handleSyncSignVideos);
+    return () => window.removeEventListener("storage", handleSyncSignVideos);
+  }, []);
 
   // Dismiss active simulated SMS after 7 seconds automatically
   useEffect(() => {
@@ -326,6 +355,141 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
         console.error("Firebase developers write failed:", err);
       }
     }
+  };
+
+  // Helper to sync sign language videos to Firestore and local storage
+  const syncSignVideosToFirestore = async (updatedVideos: Record<string, { id: string; title: string; url: string }[]>) => {
+    localStorage.setItem("samvidhan_sign_videos", JSON.stringify(updatedVideos));
+    window.dispatchEvent(new Event("storage"));
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, "settings", "sign_videos"), updatedVideos);
+      } catch (err) {
+        console.error("Firebase sign_videos write failed:", err);
+      }
+    }
+  };
+
+  const convertToEmbedUrl = (url: string): string => {
+    let trimmed = url.trim();
+    if (!trimmed) return "";
+    
+    if (trimmed.includes("/embed/")) {
+      return trimmed;
+    }
+    
+    const shortReg = /youtu\.be\/([a-zA-Z0-9_-]+)/;
+    const shortMatch = trimmed.match(shortReg);
+    if (shortMatch && shortMatch[1]) {
+      return `https://www.youtube.com/embed/${shortMatch[1]}`;
+    }
+    
+    const fullReg = /[?&]v=([a-zA-Z0-9_-]+)/;
+    const fullMatch = trimmed.match(fullReg);
+    if (fullMatch && fullMatch[1]) {
+      return `https://www.youtube.com/embed/${fullMatch[1]}`;
+    }
+
+    if (trimmed.includes("/shorts/")) {
+      const parts = trimmed.split("/shorts/");
+      if (parts[1]) {
+        const id = parts[1].split(/[?&#]/)[0];
+        return `https://www.youtube.com/embed/${id}`;
+      }
+    }
+    
+    return trimmed;
+  };
+
+  // Sign language video CRUD management
+  const handleAddOrUpdateSignVideo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignVideoFeedback("");
+
+    if (!signVideoTitleInput.trim() || !signVideoUrlInput.trim()) {
+      setSignVideoFeedback("कृपया शीर्षक और वीडियो लिंक दोनों भरें! ⚠️");
+      return;
+    }
+
+    const embedUrl = convertToEmbedUrl(signVideoUrlInput);
+    if (!embedUrl.startsWith("https://") || !embedUrl.includes("youtube.com")) {
+      setSignVideoFeedback("कृपया सही YouTube लिंक दर्ज करें! ⚠️");
+      return;
+    }
+
+    const currentList = customSignVideos[editingTermId] ? [...customSignVideos[editingTermId]] : [];
+    let updatedList;
+
+    if (editingVideoId) {
+      // Edit mode
+      updatedList = currentList.map((vid) => 
+        vid.id === editingVideoId ? { ...vid, title: signVideoTitleInput.trim(), url: embedUrl } : vid
+      );
+      setEditingVideoId(null);
+      setSignVideoFeedback("वीडियो सफलतापूर्वक अपडेट किया गया! 🎉");
+    } else {
+      // Add mode
+      const newVideo = {
+        id: "sv_" + Date.now(),
+        title: signVideoTitleInput.trim(),
+        url: embedUrl
+      };
+      updatedList = [...currentList, newVideo];
+      setSignVideoFeedback("नया वीडियो जोड़ा गया! 🎉");
+    }
+
+    const nextSignVideos = {
+      ...customSignVideos,
+      [editingTermId]: updatedList
+    };
+
+    setCustomSignVideos(nextSignVideos);
+    await syncSignVideosToFirestore(nextSignVideos);
+
+    // Clear inputs
+    setSignVideoTitleInput("");
+    setSignVideoUrlInput("");
+    playSfx(880, "sine", 0.1);
+
+    setTimeout(() => {
+      setSignVideoFeedback("");
+    }, 3000);
+  };
+
+  const handleDeleteSignVideo = async (termId: string, videoId: string) => {
+    if (!confirm("क्या आप वाकई इस वीडियो को हटाना चाहते हैं?")) return;
+
+    const currentList = customSignVideos[termId] ? [...customSignVideos[termId]] : [];
+    const updatedList = currentList.filter(v => v.id !== videoId);
+
+    const nextSignVideos = {
+      ...customSignVideos,
+      [termId]: updatedList
+    };
+
+    setCustomSignVideos(nextSignVideos);
+    await syncSignVideosToFirestore(nextSignVideos);
+
+    playSfx(440, "sine", 0.15);
+    setSignVideoFeedback("वीडियो हटा दिया गया! 🗑️");
+    setTimeout(() => {
+      setSignVideoFeedback("");
+    }, 3000);
+  };
+
+  const handleStartEditSignVideo = (vid: { id: string; title: string; url: string }) => {
+    setEditingVideoId(vid.id);
+    setSignVideoTitleInput(vid.title);
+    setSignVideoUrlInput(vid.url);
+    setSignVideoFeedback("संपादन मोड सक्रिय (Editing Video Mode)... ✏️");
+  };
+
+  const handleCancelEditSignVideo = () => {
+    setEditingVideoId(null);
+    setSignVideoTitleInput("");
+    setSignVideoUrlInput("");
+    setSignVideoFeedback("");
   };
 
   // Save changes to custom YouTube URLs
@@ -476,9 +640,20 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
             यहाँ से आप पोर्टल के विभिन्न मापदंडों और संविधान अनुच्छेद के प्रामाणिक यूट्यूब वीडियो लिंक्स को सुरक्षित रूप से संपादित एवं देखरेख कर सकते हैं।
           </p>
         </div>
-        <div className="shrink-0 flex items-center justify-center">
+        <div className="shrink-0 flex flex-col items-center sm:items-end justify-center gap-2">
           {isAuthenticated ? (
-            <Unlock className="w-16 h-16 text-rose-100/30 animate-pulse hidden md:block" />
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <button
+                type="button"
+                id="admin-logout-btn"
+                onClick={handleSignOut}
+                className="bg-white text-rose-600 hover:bg-rose-50 font-black text-xs px-4 py-2 rounded-2xl border-b-2 border-rose-200 active:border-b-0 cursor-pointer shadow-md transition-all flex items-center gap-1.5 active:scale-95"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>लॉग आउट (Safe Logout)</span>
+              </button>
+              <Unlock className="w-10 h-10 text-rose-100/30 animate-pulse hidden md:block" />
+            </div>
           ) : (
             <Lock className="w-16 h-16 text-rose-100/30 animate-pulse hidden md:block" />
           )}
@@ -557,47 +732,6 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                 <Unlock className="w-4 h-4" />
                 <span>सुरक्षित प्रवेश करें (Password Login)</span>
               </button>
-
-              <div className="flex items-center gap-2 text-slate-300 my-4 text-[10px] uppercase font-black tracking-widest select-none">
-                <div className="h-[1px] bg-slate-200 flex-1"></div>
-                <span>या (OR)</span>
-                <div className="h-[1px] bg-slate-200 flex-1"></div>
-              </div>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    setLoginError("");
-                    const result = await signInWithPopup(auth, googleProvider);
-                    if (result.user && result.user.email === "technogautam87@gmail.com") {
-                      playSfx(600, "sine", 0.15);
-                      setTimeout(() => playSfx(800, "sine", 0.2), 100);
-                      setIsAuthenticated(true);
-                      sessionStorage.setItem("samvidhan_admin_session", "true");
-                      setMascotData({
-                        mood: "excited",
-                        text: "नमस्ते चन्द्र शेखर जी! आप सफलता पूर्वक Google खाते के साथ लॉग इन हो गए हैं। 🎉📜"
-                      });
-                    } else {
-                      await signOut(auth);
-                      setLoginError("अनधिकृत खाता! केवल technogautam87@gmail.com को ही प्रशासनिक अनुमतियां प्राप्त हैं।");
-                    }
-                  } catch (err: any) {
-                    console.error("Google login failed:", err);
-                    setLoginError("गूगल साइन-इन विफल रहा: " + (err.message || String(err)));
-                  }
-                }}
-                className="w-full bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-slate-300 text-slate-700 font-extrabold text-xs py-3 rounded-xl shadow-xs cursor-pointer transition flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4 shrink-0 animate-pulse" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.22-.67-.35-1.37-.35-2.09v-.54z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span>Google से प्रवेश करें (Admin Google Login)</span>
-              </button>
             </form>
           </motion.div>
         ) : (
@@ -610,7 +744,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
             className="space-y-8"
           >
             {/* SUB TAB CONTROLLING AREA */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl w-fit border border-slate-200">
+            <div className="flex flex-wrap bg-slate-100 p-1 rounded-2xl w-fit border border-slate-200 gap-1">
               <button
                 onClick={() => { playSfx(600); setAdminSubTab("articles"); }}
                 className={`px-5 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-2 cursor-pointer ${
@@ -621,6 +755,17 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
               >
                 <Youtube className="w-4 h-4" />
                 <span>यूट्यूब कड़ियाँ (Articles Videos)</span>
+              </button>
+              <button
+                onClick={() => { playSfx(600); setAdminSubTab("signlanguage"); }}
+                className={`px-5 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-2 cursor-pointer ${
+                  adminSubTab === "signlanguage" 
+                    ? "bg-rose-500 text-white shadow-md scale-102" 
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Languages className="w-4 h-4" />
+                <span>सांकेतिक भाषा वीडियो (Sign Language Videos)</span>
               </button>
               <button
                 onClick={() => { playSfx(600); setAdminSubTab("developers"); }}
@@ -635,7 +780,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
               </button>
             </div>
 
-            {adminSubTab === "articles" ? (
+            {adminSubTab === "articles" && (
               /* TAB CONTENT: 2 Column Workspace */
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 
@@ -891,7 +1036,207 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                 </div>
 
               </div>
-            ) : (
+            )}
+
+            {/* SIGN LANGUAGE VIDEOS MANAGEMENT TAB */}
+            {adminSubTab === "signlanguage" && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start animate-fadeIn">
+                
+                {/* LEFT COLUMN: TERM SELECTOR & GUIDELINES */}
+                <div className="lg:col-span-1 space-y-6 text-left">
+                  <div className="bg-white border-2 border-slate-150 rounded-3xl p-5 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2 border-b border-slate-150 pb-3">
+                      <Languages className="w-5 h-5 text-rose-500" />
+                      <h3 className="font-black text-sm text-slate-800">सांकेतिक शब्द चुनें (Select Lesson Term)</h3>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {[
+                        { id: "samvidhan", name: "संविधान (Constitution)", emoji: "📖" },
+                        { id: "adhikar", name: "अधिकार (Rights)", emoji: "⚖️" },
+                        { id: "samanta", name: "समानता (Equality)", emoji: "🤝" },
+                        { id: "kartavya", name: "कर्तव्य (Duties)", emoji: "🙋‍♂️" },
+                        { id: "loktantra", name: "लोकतंत्र (Democracy)", emoji: "🗳️" },
+                        { id: "bharat", name: "भारत (India)", emoji: "🇮🇳" }
+                      ].map((term) => (
+                        <button
+                          type="button"
+                          key={term.id}
+                          onClick={() => {
+                            playSfx(600);
+                            setEditingTermId(term.id);
+                            setEditingVideoId(null);
+                            setSignVideoTitleInput("");
+                            setSignVideoUrlInput("");
+                            setSignVideoFeedback("");
+                          }}
+                          className={`w-full px-4 py-3 rounded-2xl font-black text-xs transition-all flex items-center justify-between border cursor-pointer ${
+                            editingTermId === term.id
+                              ? "bg-rose-55 border-rose-200 text-rose-700 shadow-xs scale-[1.02]"
+                              : "bg-slate-50 border-slate-150 hover:bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{term.emoji}</span>
+                            <span>{term.name}</span>
+                          </div>
+                          <span className="text-[10px] bg-white border px-2 py-0.5 rounded-full text-slate-500 font-mono">
+                            {(customSignVideos[term.id] || []).length} वीडियो
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* USER GUIDE BANNER */}
+                  <div className="bg-slate-50 border-2 border-slate-200 rounded-3xl p-5 text-slate-700 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="w-5 h-5 text-amber-600" />
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">सांकेतिक वीडियो प्रबंधन नियम</h4>
+                    </div>
+                    <ul className="text-[10.5px] font-bold space-y-2 list-disc pl-4 leading-relaxed">
+                      <li>आप प्रत्येक पाठ के लिए <strong>एकाधिक (Multiple)</strong> वीडियो लिंक जोड़ सकते हैं।</li>
+                      <li>सहेजने पर सामान्य यूट्यूब लिंक <span className="text-rose-650 font-mono">(/watch?v= या shorts/)</span> स्वतः सुरक्षित एम्बेड <span className="text-rose-650 font-mono">(/embed/)</span> प्रारूप में बदल जाएँगे।</li>
+                      <li>विद्यार्थियों को "सांकेतिक भाषा" टैब में ये सभी वीडियो वैकल्पिक गाइड के रूप में दिखाई देंगे।</li>
+                      <li>यदि किसी पाठ के सभी कस्टम वीडियो हटा दिए जाते हैं, तो वह स्वतः डिफ़ॉल्ट वीडियो पर रीसेट हो जाएगा।</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN: VIDEOS MANAGEMENT & FORM */}
+                <div className="lg:col-span-2 space-y-6 text-left">
+                  
+                  {/* FORM TO ADD OR EDIT VIDEO */}
+                  <div className="bg-white border-2 border-slate-150 rounded-3xl p-6 shadow-sm space-y-5">
+                    <div className="border-b border-slate-150 pb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1 px-2.5 bg-rose-100 text-rose-800 font-extrabold rounded-full text-[10px]">
+                          {editingVideoId ? "संपादित करें (Edit Mode)" : "नया जोड़ें (Add Mode)"}
+                        </span>
+                        <h3 className="font-extrabold text-base text-slate-850">
+                          {editingVideoId ? "वीडियो जानकारी संपादित करें" : "नया वीडियो लिंक जोड़ें"}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleAddOrUpdateSignVideo} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10.5px] font-black text-slate-500 uppercase tracking-wider block">वीडियो का नाम / शीर्षक (Title)</label>
+                        <input
+                          type="text"
+                          value={signVideoTitleInput}
+                          onChange={(e) => setSignVideoTitleInput(e.target.value)}
+                          placeholder="उदा: आसान भाषा में सांकेतिक अभिनय, अभ्यास वीडियो 2 आदि"
+                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-rose-500 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 focus:outline-none transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10.5px] font-black text-slate-500 uppercase tracking-wider block">यूट्यूब वीडियो लिंक (YouTube Link)</label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-red-500">
+                            <Youtube className="w-4 h-4" />
+                          </span>
+                          <input
+                            type="text"
+                            value={signVideoUrlInput}
+                            onChange={(e) => setSignVideoUrlInput(e.target.value)}
+                            placeholder="https://www.youtube.com/watch?v=... या Shorts लिंक"
+                            className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-rose-500 rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono font-bold text-slate-800 focus:outline-none transition-all placeholder:text-slate-300"
+                          />
+                        </div>
+                      </div>
+
+                      {signVideoFeedback && (
+                        <p className="text-xs font-black text-rose-700 tracking-wide bg-rose-50 border border-rose-100 rounded-xl p-2.5 animate-pulse">
+                          {signVideoFeedback}
+                        </p>
+                      )}
+
+                      <div className="flex gap-2 justify-end">
+                        {editingVideoId && (
+                          <button
+                            type="button"
+                            onClick={handleCancelEditSignVideo}
+                            className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-extrabold text-[11px] px-4 py-2.5 rounded-xl cursor-pointer transition"
+                          >
+                            रद्द करें
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          className="bg-rose-500 hover:bg-rose-600 text-white font-black text-[11px] px-5 py-2.5 rounded-xl border-b-2 border-rose-700 active:border-b-0 cursor-pointer transition flex items-center gap-1.5 active:scale-95"
+                        >
+                          {editingVideoId ? <Save className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                          <span>{editingVideoId ? "बदलाव सहेजें" : "वीडियो जोड़ें"}</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* CURRENT VIDEOS LIST FOR THE SELECTED TERM */}
+                  <div className="bg-white border-2 border-slate-150 rounded-3xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-extrabold text-sm text-slate-800 border-b border-slate-150 pb-3 flex items-center justify-between">
+                      <span>वर्तमान में संलग्न वीडियो ({editingTermId === "samvidhan" ? "संविधान" : editingTermId === "adhikar" ? "अधिकार" : editingTermId === "samanta" ? "समानता" : editingTermId === "kartavya" ? "कर्तव्य" : editingTermId === "loktantra" ? "लोकतंत्र" : "भारत"})</span>
+                      <span className="text-[10.5px] bg-slate-100 text-slate-650 px-2.5 py-0.5 rounded-md font-bold">
+                        कुल: {(customSignVideos[editingTermId] || []).length} वीडियो
+                      </span>
+                    </h3>
+
+                    {!(customSignVideos[editingTermId] && customSignVideos[editingTermId].length > 0) ? (
+                      <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2">
+                        <span className="text-3xl">🎥</span>
+                        <p className="text-xs font-bold text-slate-500 italic">
+                          इस शब्द के लिए अभी तक कोई अतिरिक्त कस्टम वीडियो नहीं जोड़ा गया है।
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">
+                          डिफ़ॉल्ट सरकारी पाठ प्रदर्शित हो रहा है। (Official Lesson Video Active)
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {customSignVideos[editingTermId].map((vid) => (
+                          <div
+                            key={vid.id}
+                            className="p-4 bg-slate-50 border border-slate-200 hover:border-slate-350 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all"
+                          >
+                            <div className="space-y-1 block max-w-full overflow-hidden text-left">
+                              <h4 className="text-xs font-black text-slate-800 truncate">{vid.title}</h4>
+                              <p className="text-[10px] font-mono text-slate-450 truncate" title={vid.url}>
+                                {vid.url}
+                              </p>
+                            </div>
+
+                            <div className="flex gap-1.5 shrink-0 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditSignVideo(vid)}
+                                className="p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-indigo-600 rounded-xl cursor-pointer transition shadow-xs"
+                                title="वीडियो संपादित करें"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSignVideo(editingTermId, vid.id)}
+                                className="p-2 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-600 rounded-xl cursor-pointer transition shadow-xs"
+                                title="वीडियो हटाएं"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {adminSubTab === "developers" && (
               /* DEVELOPERS EDITING DASHBOARD */
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start animate-fadeIn">
                 {/* Gautum Profile Edit Container */}
