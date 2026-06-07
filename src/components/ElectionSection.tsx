@@ -6,6 +6,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { initialCandidates } from "../data";
 import { Candidate } from "../types";
+import { db } from "../lib/firebase";
+import { doc, setDoc, collection, getDocs } from "firebase/firestore";
 import { 
   Fingerprint, 
   Landmark, 
@@ -27,6 +29,34 @@ import {
   Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+
+export function toRoman(num: number): string {
+  if (num <= 0) return String(num);
+  const romanMap: [number, string][] = [
+    [1000, "M"],
+    [900, "CM"],
+    [500, "D"],
+    [400, "CD"],
+    [100, "C"],
+    [90, "XC"],
+    [50, "L"],
+    [40, "XL"],
+    [10, "X"],
+    [9, "IX"],
+    [5, "V"],
+    [4, "IV"],
+    [1, "I"]
+  ];
+  let result = "";
+  let temp = num;
+  for (const [val, label] of romanMap) {
+    while (temp >= val) {
+      result += label;
+      temp -= val;
+    }
+  }
+  return result;
+}
 
 interface Voter {
   id: string;
@@ -153,6 +183,10 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     const saved = localStorage.getItem("samvidhan_election_candidates_locked");
     return saved === "true"; // Change from (saved !== "false") to allow unlocked by default
   });
+  const [votersLocked, setVotersLocked] = useState<boolean>(() => {
+    const saved = localStorage.getItem("samvidhan_election_voters_locked");
+    return saved === "true";
+  });
 
   // Candidate setup form states
   const [newCandName, setNewCandName] = useState("");
@@ -200,6 +234,35 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
   // Analytics states
   const [swingVotes, setSwingVotes] = useState<number>(0);
 
+  // Special/Anti-Fraud voting states (टेंडर वोट और चैलेंज वोट)
+  const [tenderedVotes, setTenderedVotes] = useState<{
+    id: string;
+    voterId: string;
+    voterName: string;
+    candidateId: number;
+    timestamp: string;
+  }[]>(() => {
+    const saved = localStorage.getItem("samvidhan_election_tendered_votes");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const [isChallengedVoteSimActive, setIsChallengedVoteSimActive] = useState(false);
+  const [challengedVoter, setChallengedVoter] = useState<Voter | null>(null);
+  const [challengeStep, setChallengeStep] = useState(1); // 1 = info, 2 = simulation/incident, 3 = verdict/quiz
+  const [challengeVoterName, setChallengeVoterName] = useState("");
+  const [isChallengeSuccess, setIsChallengeSuccess] = useState<boolean | null>(null);
+
+  const [isTenderedVoteSimActive, setIsTenderedVoteSimActive] = useState(false);
+  const [selectedTenderedVoterId, setSelectedTenderedVoterId] = useState("");
+  const [tenderedVoter, setTenderedVoter] = useState<Voter | null>(null);
+  const [selectedTenderedCandidateId, setSelectedTenderedCandidateId] = useState<number | null>(null);
+  const [tenderedStep, setTenderedStep] = useState(1);
+
   // School Name manual state
   const [schoolName, setSchoolName] = useState<string>(() => {
     return localStorage.getItem("samvidhan_election_school_name") || "बाल एकता उच्चतर माध्यमिक विद्यालय";
@@ -211,6 +274,71 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     return localStorage.getItem("samvidhan_election_block_name") || "सांगानेर";
   });
 
+  const [schoolRegCode, setSchoolRegCode] = useState<string>(() => {
+    const code = localStorage.getItem("samvidhan_election_school_reg_code") || "";
+    if (/^RJ\d{6}$/i.test(code.trim())) {
+      return code.toUpperCase();
+    }
+    return code || "RJ000001";
+  });
+
+  // Helper to retrieve the true next RJ###### sequential code
+  const getNextSequentialRegCode = async (): Promise<string> => {
+    let ids: number[] = [];
+    
+    // 1. Scan LocalStorage registered schools
+    const savedSchoolsRaw = localStorage.getItem("samvidhan_registered_schools");
+    if (savedSchoolsRaw) {
+      try {
+        const list = JSON.parse(savedSchoolsRaw);
+        if (Array.isArray(list)) {
+          list.forEach((s: any) => {
+            const code = s.schoolRegCode || "";
+            const match = code.trim().match(/^RJ(\d{6})$/i);
+            if (match) {
+              ids.push(parseInt(match[1], 10));
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse locally registered schools:", e);
+      }
+    }
+
+    // 2. Scan Cloud Firestore schools collection
+    try {
+      const querySnapshot = await getDocs(collection(db, "schools"));
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const code = data.schoolRegCode || docSnap.id || "";
+        const match = code.trim().match(/^RJ(\d{6})$/i);
+        if (match) {
+          ids.push(parseInt(match[1], 10));
+        }
+      });
+    } catch (err) {
+      console.warn("Could not query Firestore for sequential codes:", err);
+    }
+
+    const maxNum = ids.length > 0 ? Math.max(...ids) : 0;
+    const nextNum = maxNum + 1;
+    return `RJ${String(nextNum).padStart(6, "0")}`;
+  };
+
+  // Ensure schoolRegCode is always properly aligned to sequential RJ###### format
+  useEffect(() => {
+    const checkAndAlignCode = async () => {
+      if (!/^RJ\d{6}$/i.test(schoolRegCode.trim())) {
+        const nextCode = await getNextSequentialRegCode();
+        setSchoolRegCode(nextCode);
+        localStorage.setItem("samvidhan_election_school_reg_code", nextCode);
+      }
+    };
+    checkAndAlignCode();
+  }, [schoolRegCode]);
+
+  const [showConstitutionalNote, setShowConstitutionalNote] = useState(true);
+
   // Sync state with storage
   useEffect(() => {
     localStorage.setItem("samvidhan_election_school_name", schoolName);
@@ -220,7 +348,9 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     localStorage.setItem("samvidhan_election_voters", JSON.stringify(voters));
     localStorage.setItem("samvidhan_election_candidates", JSON.stringify(candidates));
     localStorage.setItem("samvidhan_election_candidates_locked", candidatesLocked ? "true" : "false");
+    localStorage.setItem("samvidhan_election_voters_locked", votersLocked ? "true" : "false");
     localStorage.setItem("samvidhan_election_tie_breaker_resolved", tieBreakerResolved ? "true" : "false");
+    localStorage.setItem("samvidhan_election_tendered_votes", JSON.stringify(tenderedVotes));
     if (drawnWinnerCandidateId !== null) {
       localStorage.setItem("samvidhan_election_drawn_winner", drawnWinnerCandidateId.toString());
     } else {
@@ -235,13 +365,22 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
       localStorage.setItem("samvidhan_election_completed", "true");
       window.dispatchEvent(new Event("storage"));
     }
-  }, [step, voters, candidates, activeVoterId, candidatesLocked, tieBreakerResolved, drawnWinnerCandidateId, schoolName, districtName, blockName]);
+  }, [step, voters, candidates, activeVoterId, candidatesLocked, votersLocked, tieBreakerResolved, drawnWinnerCandidateId, schoolName, districtName, blockName, tenderedVotes]);
 
-  // Record school with district & block in the global registered schools registry
+  // Record school with district & block in the global registered schools registry and Cloud Firestore
   useEffect(() => {
     if (schoolName.trim()) {
       const savedSchoolsRaw = localStorage.getItem("samvidhan_registered_schools");
-      let list: Array<{ schoolName: string; districtName: string; blockName: string; timestamp: string; votersCount: number }> = [];
+      let list: Array<{
+        schoolRegCode: string;
+        schoolName: string;
+        districtName: string;
+        blockName: string;
+        timestamp: string;
+        votersCount: number;
+        candidatesCount: number;
+        winnerName: string;
+      }> = [];
       if (savedSchoolsRaw) {
         try {
           list = JSON.parse(savedSchoolsRaw);
@@ -252,15 +391,23 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
       if (!Array.isArray(list)) list = [];
 
       const targetIndex = list.findIndex(
-        s => s.schoolName.trim().toLowerCase() === schoolName.trim().toLowerCase()
+        s => s.schoolRegCode === schoolRegCode || s.schoolName.trim().toLowerCase() === schoolName.trim().toLowerCase()
       );
 
+      const leadingCandidate = candidates.length > 0 ? [...candidates].sort((a, b) => b.votes - a.votes)[0] : null;
+      const winnerLabel = (step === "winner" || step === "counting") && leadingCandidate && leadingCandidate.votes > 0
+        ? `${leadingCandidate.symbol} ${leadingCandidate.name} (${leadingCandidate.party})`
+        : "चुनाव जारी / गणना लम्बित";
+
       const newEntry = {
+        schoolRegCode: schoolRegCode,
         schoolName: schoolName.trim(),
         districtName: (districtName || "जयपुर").trim(),
         blockName: (blockName || "सांगानेर").trim(),
         timestamp: list[targetIndex]?.timestamp || new Date().toISOString(),
-        votersCount: voters.length
+        votersCount: voters.length,
+        candidatesCount: candidates.length,
+        winnerName: winnerLabel
       };
 
       if (targetIndex >= 0) {
@@ -270,8 +417,22 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
       }
       localStorage.setItem("samvidhan_registered_schools", JSON.stringify(list));
       window.dispatchEvent(new Event("storage"));
+
+      // Sync to Cloud Firestore schools collection
+      const syncToFirestore = async () => {
+        try {
+          const docId = schoolRegCode.replace(/[^a-zA-Z0-9_\-]/g, "");
+          if (docId) {
+            await setDoc(doc(db, "schools", docId), newEntry);
+            console.log("Synced current school election records to Cloud Firestore successfully!");
+          }
+        } catch (err) {
+          console.warn("Cloud Firestore registration update failed, using local backup. Error:", err);
+        }
+      };
+      syncToFirestore();
     }
-  }, [schoolName, districtName, blockName, voters.length]);
+  }, [schoolName, districtName, blockName, voters.length, step, candidates, schoolRegCode]);
 
   // Sync mascot advice
   useEffect(() => {
@@ -352,6 +513,10 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
 
   // Quick setup with 4 default mock classmates
   const addDefaultClassmates = () => {
+    if (votersLocked) {
+      alert("सुरक्षा चेतावनी: मतदाता सूची वर्तमान में लॉक (LOCKED) है! कृपया नए मतदाता जोड़ने से पहले इसे अनलॉक करें।");
+      return;
+    }
     const defaults: Voter[] = [
       { id: "BAL-IND-12-7011", name: "रोहन शर्मा", age: 12, symbol: "⚡", voted: false, pin: "1111" },
       { id: "BAL-IND-13-4392", name: "प्रिया पटेल", age: 13, symbol: "🍎", voted: false, pin: "2222" },
@@ -376,6 +541,10 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
   // Add custom registered student
   const registerStudent = (e: React.FormEvent) => {
     e.preventDefault();
+    if (votersLocked) {
+      alert("सुरक्षा चेतावनी: मतदाता सूची वर्तमान में लॉक (LOCKED) है! कृपया नए मतदाता जोड़ने से पहले इसे अनलॉक करें।");
+      return;
+    }
     if (!newVoterName.trim()) return;
 
     // Duplication guard
@@ -387,7 +556,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
 
     const pinToAssign = newVoterPin.trim() || Math.floor(1000 + Math.random() * 9000).toString();
     if (pinToAssign.length !== 4 || /\D/.test(pinToAssign)) {
-      alert("पिन कोड केवल ४ अंकों का होना चाहिए!");
+      alert("पिन कोड केवल 4 अंकों का होना चाहिए!");
       return;
     }
 
@@ -409,6 +578,10 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
   };
 
   const removeVoter = (id: string) => {
+    if (votersLocked) {
+      alert("सुरक्षा चेतावनी: मतदाता सूची वर्तमान में लॉक (LOCKED) है! कृपया मतदाता हटाने से पहले इसे अनलॉक करें।");
+      return;
+    }
     setVoters(prev => prev.filter(v => v.id !== id));
     if (activeVoterId === id) setActiveVoterId(null);
     playSoundAtFrequency(300, 0.1);
@@ -618,10 +791,11 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
   };
 
   // Full reset wipes everything
-  const resetEntireElectionSystem = () => {
+  const resetEntireElectionSystem = async () => {
     setVoters([]);
     setActiveVoterId(null);
     setCandidates(initialCandidates.map(c => ({ ...c, votes: 0 })));
+    setTenderedVotes([]);
     setStep("card-creation");
     setCountingStep("ready");
     setCountingIndex(-1);
@@ -630,6 +804,11 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     setDrawnWinnerCandidateId(null);
     setTieBreakerResolved(false);
     setIsDrawingLots(false);
+
+    // Retrieve and assign the true next RJ###### sequential code
+    const nextCode = await getNextSequentialRegCode();
+    setSchoolRegCode(nextCode);
+    localStorage.setItem("samvidhan_election_school_reg_code", nextCode);
     
     // Clear Local Storage
     localStorage.removeItem("samvidhan_election_step");
@@ -639,6 +818,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     localStorage.removeItem("samvidhan_election_completed");
     localStorage.removeItem("samvidhan_election_drawn_winner");
     localStorage.removeItem("samvidhan_election_tie_breaker_resolved");
+    localStorage.removeItem("samvidhan_election_tendered_votes");
     playSoundAtFrequency(400, 0.3);
   };
 
@@ -647,6 +827,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     setVoters(prev => prev.map(v => ({ ...v, voted: false, votedTo: undefined })));
     setActiveVoterId(null);
     setCandidates(initialCandidates.map(c => ({ ...c, votes: 0 })));
+    setTenderedVotes([]);
     setStep("card-creation");
     setCountingStep("ready");
     setCountingIndex(-1);
@@ -658,6 +839,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     localStorage.removeItem("samvidhan_election_completed");
     localStorage.removeItem("samvidhan_election_drawn_winner");
     localStorage.removeItem("samvidhan_election_tie_breaker_resolved");
+    localStorage.removeItem("samvidhan_election_tendered_votes");
     playSoundAtFrequency(550, 0.2);
   };
 
@@ -704,7 +886,428 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
         )}
       </AnimatePresence>
 
+      {/* 🔍 CHALLENGED VOTE (आपत्तियुक्त मत) SIMULATOR MODAL */}
+      <AnimatePresence>
+        {isChallengedVoteSimActive && (
+          <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="bg-white border-4 border-rose-600 rounded-[30px] max-w-xl w-full shadow-2xl p-6 md:p-8 space-y-6 text-slate-800 relative text-left my-8"
+            >
+              {/* Header */}
+              <div className="text-center space-y-1 pb-4 border-b border-rose-100">
+                <span className="text-4xl animate-pulse block">🚨⚖️</span>
+                <h3 className="text-lg md:text-xl font-black text-rose-950 tracking-tight">
+                  फर्जी वोट पकड़ने का सिमुलेशन (Challenged Vote)
+                </h3>
+                <p className="text-[10px] text-rose-600 font-black uppercase tracking-wide">
+                  कंडक्ट ऑफ इलेक्शन रूल्स 1961 - नियम 49J • आपराधिक न्याय शास्त्र
+                </p>
+              </div>
+
+              {/* STEP 1: Incident Scene */}
+              {challengeStep === 1 && (
+                <div className="space-y-4">
+                  <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl space-y-2">
+                    <h4 className="font-black text-xs text-rose-950">💼 वाकया (The Incident Scenario)</h4>
+                    <p className="text-xs text-slate-700 font-bold leading-relaxed">
+                      एक संदिग्ध बालक मतदान डेस्क पर आकर अपना नाम <strong>'रोहन शर्मा'</strong> बताता है और ईवीएम रूम में जाने की कोशिश करता है।
+                    </p>
+                    <p className="text-xs text-slate-700 font-black leading-relaxed italic bg-white p-2 border border-rose-200 rounded-lg">
+                      "तभी विरोधी दल के पोलिंग एजेंट 'सुमित' विरोध प्रकट करते हैं: <strong>'साहब, आपत्ति! (I Challenge!)'</strong> ये लड़का रोहन नहीं है, यह तो रमेश है जो रोहन के नाम पर फर्जी वोट डालने आया है!"
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-250 p-4 rounded-xl space-y-2">
+                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 rounded uppercase">
+                      💡 संवैधानिक ज्ञान (Rule 49J):
+                    </span>
+                    <p className="text-[11px] text-slate-600 font-bold leading-normal">
+                      यदि कोई पोलिंग एजेंट किसी मतदाता की पहचान को अधिकारिक रूप से चुनौती (Challenge) देता है, तो उसे <strong>₹2 की चुनौती राशि</strong> पीठासीन अधिकारी (Presiding Officer) के पास नकद जमा करनी होती है। यदि धोखाधड़ी सिद्ध नहीं होती तो यह राशि ज़ब्त हो जाती है।
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsChallengedVoteSimActive(false)}
+                      className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs rounded-xl"
+                    >
+                      पीछे हटें
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChallengeStep(2);
+                        playClickTick();
+                      }}
+                      className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-md cursor-pointer text-center"
+                    >
+                      पीठासीन अधिकारी जांच शुरू करें ➔
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: The Inquiry Quiz */}
+              {challengeStep === 2 && (
+                <div className="space-y-4">
+                  <div className="bg-stone-50 border-2 border-stone-200 p-4 rounded-2xl text-center space-y-2">
+                    <h4 className="font-black text-xs text-stone-800">🕵️ जांच शुरू (The Summary Inquiry)</h4>
+                    <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
+                      आपने (पीठासीन अधिकारी ने) एजेंट से ₹2 लेकर रसीद दी। अब आपने उस व्यक्ति से पूछताछ की। वह डरकर थर-थर कांपने लगा और अपनी असली पहचान स्वीकार कर ली!
+                    </p>
+                  </div>
+
+                  {/* MCQ to test knowledge */}
+                  <div className="space-y-3">
+                    <span className="text-[10.5px] font-black text-rose-800 uppercase tracking-widest block pl-1">
+                      ❓ न्यायिक नीति प्रश्न (Constitutional Policy Test):
+                    </span>
+                    <p className="text-xs font-black text-slate-900 leading-normal pl-1">
+                      जनप्रतिनिधित्व अधिनियम, 1951 (RPA) और भारतीय दण्ड विधान के अंतर्गत, ऐसे फर्जी बोगस मतदाता के पकड़े जाने पर पीठासीन अधिकारी को क्या विधिक कार्यवाही करनी चाहिए?
+                    </p>
+
+                    <div className="space-y-2 pt-1 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsChallengeSuccess(false);
+                          playSoundAtFrequency(300, 0.2);
+                        }}
+                        className={`w-full p-3.5 border-2 text-left text-xs rounded-xl transition ${
+                          isChallengeSuccess === false
+                            ? "bg-red-50 border-red-500 text-red-900"
+                            : "bg-white border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        🔴 <strong>कदम A:</strong> उसे चुनाव प्रचार से रोककर केवल मौखिक चेतावनी देकर बरी कर छोड़ देना चाहिए ताकि समय बचे।
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsChallengeSuccess(true);
+                          playSoundAtFrequency(800, 0.4);
+                        }}
+                        className={`w-full p-3.5 border-2 text-left text-xs rounded-xl transition ${
+                          isChallengeSuccess === true
+                            ? "bg-emerald-50 border-emerald-500 text-emerald-950"
+                            : "bg-white border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        🟢 <strong>कदम B:</strong> उसे गिरफ्तार करने हेतु तुरंत स्थानीय पुलिस को सौंपना चाहिए! क्योंकि फर्जी मतदान (Impersonation) **भारतीय न्याय संहिता (BNS) की धारा 169 (या पुरानी IPC धारा 171D/171F)** के तहत 1 वर्ष तक की जेल या जुर्माना वाला दंडनीय गंभीर अपराध है।
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsChallengeSuccess(false);
+                          playSoundAtFrequency(300, 0.2);
+                        }}
+                        className="w-full p-3.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-left text-xs rounded-xl"
+                      >
+                        🔴 <strong>कदम C:</strong> बोगस वोटरों की संख्या बढ़ाकर वोट डलवा देना चाहिए ताकि मतदान प्रतिशत बेहतर दिखे।
+                      </button>
+                    </div>
+                  </div>
+
+                  {isChallengeSuccess === false && (
+                    <p className="text-xs text-red-650 bg-red-50 p-3 rounded-lg font-bold border border-red-200 leading-normal">
+                      ❌ <strong>गलत विधिक ज्ञान!</strong> निष्पक्ष चुनाव प्रणाली में फर्जी वोटरों को बिना पुलिस कार्यवाही साधारण छोड़ना गैरकानूनी है। सही विकल्प (कदम B) चुनें और लोकतंत्र की गरिमा बचाएं।
+                    </p>
+                  )}
+
+                  {isChallengeSuccess === true && (
+                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-3">
+                      <p className="text-xs text-emerald-950 font-bold leading-normal">
+                        🎉 <strong>बिल्कुल सही न्यायिक निर्णय!</strong> पीठासीन अधिकारी पुलिस कंप्लेंट लेटर तैयार कर बोगस मतदाता को थानेदार को सुपुर्द करता है। चुनाव में संज्ञेय अपराध निवारण ही लोकतंत्र की सुरक्षा है!
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChallengeStep(3);
+                          incrementScore(20);
+                          playPaperCut();
+                        }}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-lg shadow cursor-pointer text-center"
+                      >
+                        विधिक परिणाम कार्ड देखें ➔
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 3: Educational Verdict Card */}
+              {challengeStep === 3 && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-rose-50 to-amber-50 border-2 border-rose-300 p-5 rounded-[24px] space-y-4 text-center">
+                    <span className="text-5xl block animate-bounce">👮‍♀️🏫</span>
+                    <h4 className="font-black text-sm text-rose-950">लोकतांत्रिक सीख: बोगस पोलिंग अपराध है</h4>
+                    
+                    <div className="text-left space-y-2 text-xs font-bold leading-relaxed text-slate-700">
+                      <p>
+                        ⚖️ <strong>विधिक धारा (Law):</strong> चुनाव में किसी अन्य व्यक्ति का रूप धारण कर गलत वोट डालना **Representation of the People Act, 1951 की धारा 31** और **IPC धारा 171D/171F (अब BNS धारा 169)** के दायरे में दंडनीय अपराध है।
+                      </p>
+                      <p>
+                        🛡️ <strong>चैलेंज मतों का प्रभाव:</strong> पोलिंग एजेंटों की सतर्कता और पीठासीन अधिकारी की त्वरित कानून-सम्मत कार्यवाही बोगस या फर्जी मतदाताओं को रोकती है जो चुनाव प्रक्रिया को दूषित करते हैं।
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsChallengedVoteSimActive(false);
+                      setMascotData({
+                        mood: "proud",
+                        text: "बहुत बढ़िया! आपने बाल चुनाव में एक फर्जी मतदाता को दबोचा और कानून सम्मत रास्ता चुना। यह लोकतंत्र के लिए अमूल्य शिक्षा है!"
+                      });
+                    }}
+                    className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-md text-center uppercase tracking-wider"
+                  >
+                    सजग नागरिक बन कर वापस लौटें 🚪
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ✉️ TENDERED VOTE (निवेदित मत) CASTING AND EDUCATION MODAL */}
+      <AnimatePresence>
+        {isTenderedVoteSimActive && (
+          <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="bg-white border-4 border-amber-500 rounded-[30px] max-w-xl w-full shadow-2xl p-6 md:p-8 space-y-5 text-slate-800 relative text-left my-8"
+            >
+              {/* Header */}
+              <div className="text-center space-y-1 pb-4 border-b border-amber-100">
+                <span className="text-4xl block animate-pulse">✉️ Ballot</span>
+                <h3 className="text-lg md:text-xl font-black text-amber-950 tracking-tight">
+                  निवेदित मत संपादन सिमुलेटर (Tendered Vote Procedure)
+                </h3>
+                <p className="text-[10px] text-amber-600 font-black uppercase tracking-wide">
+                  कंडक्ट ऑफ इलेक्शन रूल्स 1961 - नियम 49P • मतदाता सुरक्षा कवच
+                </p>
+              </div>
+
+              {/* STEP 1: Select Voter whose vote is stolen */}
+              {tenderedStep === 1 && (
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl space-y-1">
+                    <h4 className="font-black text-xs text-amber-950">😟 "महोदय! मेरा वोट पहले ही कोई और डाल गया!"</h4>
+                    <p className="text-xs text-slate-700 font-bold leading-relaxed">
+                      जब कोई असली नागरिक पोलिंग बूथ पर आता है, और उसे पता चलता है कि उसका वोट किसी बोगस / फ़र्जी मतदाता ने पहले ही गलत ढंग से दर्ज कर दिया है, तो वह परेशान हो जाता है।
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 block uppercase tracking-wider pl-1">
+                      1. उस मतदाता को चुनें जिसका मत पहले ही चोरी हो चुका है:
+                    </label>
+                    <select
+                      value={selectedTenderedVoterId}
+                      onChange={(e) => {
+                        setSelectedTenderedVoterId(e.target.value);
+                        const vObj = voters.find(v => v.id === e.target.value) || null;
+                        setTenderedVoter(vObj);
+                      }}
+                      className="w-full bg-slate-50 border-2 border-slate-200 p-3 rounded-xl font-bold text-xs focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="">-- मतदाता चुनें (जिन्होंने वोटेड दर्शाया हुआ है) --</option>
+                      {voters.filter(v => v.voted).map((voter) => (
+                        <option key={voter.id} value={voter.id}>
+                          {voter.name} ({voter.id.split("-").pop()})
+                        </option>
+                      ))}
+                    </select>
+
+                    {voters.filter(v => v.voted).length === 0 && (
+                      <p className="text-[9.5px] text-rose-600 font-extrabold bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-150">
+                        🔔 ध्यान दें: इस सिमुलेशन का प्रयास करने के लिए पहले कम से कम एक वोटर का नियमित ईवीएम वोट दर्ज होना चाहिए।
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 border p-3 rounded-xl space-y-1.5">
+                    <span className="text-[10px] bg-amber-100 text-amber-950 font-extrabold px-2 py-0.5 rounded uppercase block w-fit">
+                      💡 नीतिगत एवं कानूनी तथ्य:
+                    </span>
+                    <p className="text-[11px] text-slate-650 font-bold leading-normal">
+                      <strong>अनुच्छेद 326 (सार्वभौमिक मताधिकार):</strong> संवैधानिक व्यवस्था के अनुसार, बोगस पोलिंग होने पर भी वास्तविक वोटर को मताधिकार से वंचित नहीं किया जा सकता। पीठासीन अधिकारी उसकी पहचान का सच्चा सत्यापन (जैसे आधार, वोटर कार्ड) कर उसे <strong>निवेदित मत (Tendered Ballot Paper)</strong> जारी करता है।
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsTenderedVoteSimActive(false)}
+                      className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs rounded-xl"
+                    >
+                      रद्द करें
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!selectedTenderedVoterId}
+                      onClick={() => {
+                        setTenderedStep(2);
+                        playPaperCut();
+                      }}
+                      className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-center block"
+                    >
+                      पहचान जाँचे व मतपत्र जारी करें ➔
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: Realistic Green Ballot Paper Simulation */}
+              {tenderedStep === 2 && tenderedVoter && (
+                <div className="space-y-4">
+                  <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-250 text-center font-sans">
+                    <p className="text-xs font-bold text-slate-700">
+                      📜 पीठासीन अधिकारी ने <strong>{tenderedVoter.name}</strong> को बैलेट पेपर सं. <strong className="text-amber-800">#TND-0{tenderedVotes.length + 1}</strong> जारी किया है।
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5 leading-normal">
+                      सुरक्षा कारणों से यह मत ईवीएम पर नहीं, बल्कि पारंपरिक मतपत्र पर दर्ज करके लिफाफे में बन्द होगा।
+                    </p>
+                  </div>
+
+                  {/* Render beautiful Ballot Paper sheet */}
+                  <div className="bg-[#e4ffd4] border-2 border-emerald-450 rounded-2xl p-4 md:p-5 shadow-inner relative max-h-[300px] overflow-y-auto">
+                    <div className="absolute inset-0 bg-[radial-gradient(#059669_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none"></div>
+                    
+                    <div className="border-2 border-dashed border-emerald-700 p-3 bg-white/70 space-y-3 relative rounded-xl text-slate-800">
+                      <div className="text-center pb-2 border-b border-emerald-700/80 leading-none">
+                        <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest">निवेदित मतपत्र (Tendered Ballot)</h4>
+                        <span className="text-[7.5px] text-emerald-800 font-black">CONDUCT OF ELECTIONS RULES, 1961 - FORM 49P</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {candidates.map((cand) => (
+                          <div
+                            key={cand.id}
+                            onClick={() => {
+                              setSelectedTenderedCandidateId(cand.id);
+                              playClickTick();
+                            }}
+                            className={`p-2 border rounded-xl flex items-center justify-between cursor-pointer select-none transition ${
+                              selectedTenderedCandidateId === cand.id
+                                ? "bg-emerald-100 border-emerald-600 ring-2 ring-emerald-250"
+                                : "bg-white hover:bg-slate-50 border-slate-350"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-emerald-900 border border-emerald-300 w-5 h-5 flex items-center justify-center rounded bg-emerald-50 font-black">
+                                {cand.id}
+                              </span>
+                              <div>
+                                <h5 className="text-[11px] font-black leading-none">{cand.name}</h5>
+                                <span className="text-[8px] text-slate-400 font-bold">{cand.party}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-base">{cand.symbol}</span>
+                              {/* Selection Spot */}
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                selectedTenderedCandidateId === cand.id 
+                                  ? "border-emerald-600 bg-emerald-600" 
+                                  : "border-slate-300"
+                              }`}>
+                                {selectedTenderedCandidateId === cand.id && (
+                                  <span className="text-white text-[9px] font-bold">印</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTenderedStep(1)}
+                      className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs rounded-xl"
+                    >
+                      पीछे जाएं
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedTenderedCandidateId === null}
+                      onClick={() => {
+                        if (selectedTenderedCandidateId === null) return;
+                        
+                        const newTenderedVote = {
+                          id: `TND-${Math.floor(1000 + Math.random() * 9000)}`,
+                          voterId: tenderedVoter.id,
+                          voterName: tenderedVoter.name,
+                          candidateId: selectedTenderedCandidateId,
+                          timestamp: new Date().toISOString()
+                        };
+
+                        setTenderedVotes(prev => [...prev, newTenderedVote]);
+                        setTenderedStep(3);
+                        incrementScore(20);
+                        playPaperCut();
+                      }}
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-center block shadow-md"
+                    >
+                      महर लगाएं एवं लिफाफे में डालें 🏁
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Success educational screen */}
+              {tenderedStep === 3 && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-emerald-50 to-amber-50 border-2 border-emerald-300 p-5 rounded-[24px] text-center space-y-4">
+                    <span className="text-5xl block animate-bounce">📥✉️</span>
+                    <h4 className="font-black text-sm text-emerald-950">निवेदित मत (Tendered Ballot) सील हो चुका है!</h4>
+                    
+                    <div className="text-left space-y-2 text-xs font-bold leading-relaxed text-slate-705 bg-white p-4 rounded-xl border border-emerald-100">
+                      <p>
+                        🔍 <strong>काउंटिंग नियम (Counting Rule):</strong> चुनाव आयोग के नियमों के मुताबिक, टेंडर वोटों को ईवीएम मशीन के आंकड़ों में नहीं जोड़ा जाता। इन्हें एक अलग लिफाफे (Cover Paper) में सील करके सुरक्षित रखा जाता है।
+                      </p>
+                      <p>
+                        ⚖️ <strong>महत्ता (Electoral Importance):</strong> जब किसी क्षेत्र में जीतने और हारने वाले की जीत का अंतर (Margin of Victory) बेहद कम हो, या चुनाव परिणाम को लेकर हाईकोर्ट में कोई विधिक याचिका दायर हो, केवल तभी अदालत के आदेश पर इन टेंडर मतपत्रों को खोल कर गिना जाता है!
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTenderedVoteSimActive(false);
+                      setMascotData({
+                        mood: "excited",
+                        text: "शाबाश! आपने टेंडर मतदान (Rule 49P) को सही कानून सम्मत विधि से संपन्न कराया। वास्तविक मतदाता का हक़ सुरक्षित रहा!"
+                      });
+                    }}
+                    className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl shadow-md text-center uppercase tracking-lighter"
+                  >
+                    सफलतापूर्वक संपन्न करें 🚪
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ⚠️ ELECTION BOOTH GUIDELINE STEP-BY-STEP POPUP */}
+
       <AnimatePresence>
         {showInstructionPopup && (
           <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -736,11 +1339,11 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   </div>
                   <div className="space-y-1 text-left">
                     <span className="text-[9.5px] bg-orange-500 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
-                      चरण १ • मतदाता नामांकन
+                      चरण 1 • मतदाता नामांकन
                     </span>
                     <h4 className="text-xs font-black text-orange-950">साथी दोस्तों के वोटर कार्ड व गुप्त संख्या (PIN) बनाना</h4>
                     <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
-                      अपने मित्र अध्यापकों या बाल विद्यार्थियों के नाम तथा आयु जोड़ें। प्रणाली उन्हें एक **विशिष्ट ४-अंकों का गुप्त PIN** और पहचान पत्र प्रदान करेगी, जिसे गुप्त रखना अनिवार्य है!
+                      अपने मित्र अध्यापकों या बाल विद्यार्थियों के नाम तथा आयु जोड़ें। प्रणाली उन्हें एक **विशिष्ट 4-अंकों का गुप्त PIN** और पहचान पत्र प्रदान करेगी, जिसे गुप्त रखना अनिवार्य है!
                     </p>
                   </div>
                 </div>
@@ -753,11 +1356,11 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   </div>
                   <div className="space-y-1 text-left">
                     <span className="text-[9.5px] bg-indigo-600 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
-                      चरण २ • नामांकन एवं एजेंडा
+                      चरण 2 • नामांकन एवं एजेंडा
                     </span>
                     <h4 className="text-xs font-black text-indigo-950">उम्मीदवारों के चुनाव चिन्ह व संकल्प घोषणा पत्र संपादन</h4>
                     <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
-                      चुनाव मैदान में ४ प्रसिद्ध बाल उम्मीदवार खड़े हैं। आप अपने मनमुताबिक प्रत्याशियों के मुखौटे, वादे (मैनीफेस्टो) और चुनाव चिन्ह को सहजता से संपादित कर सकते हैं।
+                      चुनाव मैदान में 4 प्रसिद्ध बाल उम्मीदवार खड़े हैं। आप अपने मनमुताबिक प्रत्याशियों के मुखौटे, वादे (मैनीफेस्टो) और चुनाव चिन्ह को सहजता से संपादित कर सकते हैं।
                     </p>
                   </div>
                 </div>
@@ -770,11 +1373,11 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   </div>
                   <div className="space-y-1 text-left">
                     <span className="text-[9.5px] bg-blue-500 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
-                      चरण ३ • गुप्त ईवीएम मतदान
+                      चरण 3 • गुप्त ईवीएम मतदान
                     </span>
                     <h4 className="text-xs font-black text-blue-950">पिन दाखिल करें, 'बीप' ध्वनि व रसीद (VVPAT) अवलोकन</h4>
                     <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
-                      मतदान बूथ पर जाएं, विद्यार्थी अपना नाम चुनकर ४-अंकों का गुप्त पिन दाखिल करेगा। तत्पश्चात, ईवीएम मशीन की लाल-हरी बटन दबाएं। **"बीप"** 🔊 की आवाज़ के साथ **VVPAT बॉक्स** में वोट रसीद नीचे गिर जाएगी!
+                      मतदान बूथ पर जाएं, विद्यार्थी अपना नाम चुनकर 4-अंकों का गुप्त पिन दाखिल करेगा। तत्पश्चात, ईवीएम मशीन की लाल-हरी बटन दबाएं। **"बीप"** 🔊 की आवाज़ के साथ **VVPAT बॉक्स** में वोट रसीद नीचे गिर जाएगी!
                     </p>
                   </div>
                 </div>
@@ -787,7 +1390,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   </div>
                   <div className="space-y-1 text-left">
                     <span className="text-[9.5px] bg-amber-500 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
-                      चरण ४ • लाइव मतगणना डेस्क
+                      चरण 4 • लाइव मतगणना डेस्क
                     </span>
                     <h4 className="text-xs font-black text-amber-950">स्वचालित वोटों की पारदर्शी गिनती</h4>
                     <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
@@ -804,7 +1407,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   </div>
                   <div className="space-y-1 text-left">
                     <span className="text-[9.5px] bg-emerald-600 text-white font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
-                      चरण ५ • राज्याभिषेक व परिणाम PDF
+                      चरण 5 • राज्याभिषेक व परिणाम PDF
                     </span>
                     <h4 className="text-xs font-black text-emerald-950">फूलों की वर्षा और सुरक्षित परिणाम सहेजना</h4>
                     <p className="text-[11px] text-slate-600 font-bold leading-relaxed">
@@ -848,7 +1451,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
             🗳️ सामूहिक बाल चुनाव उत्सव (Classroom Multi-Voter Election)
           </h2>
           <p className="text-xs text-slate-500 font-bold tracking-wide">
-            लोकसभा मतदान सिमुलेशन (अनुच्छेद ३२६): साथी दोस्तों को जोड़ें, ईवीएम बटन दबाएं, वीवीपीएटी जांचें और मतगणना करें!
+            लोकसभा मतदान सिमुलेशन (अनुच्छेद 326): साथी दोस्तों को जोड़ें, ईवीएम बटन दबाएं, वीवीपीएटी जांचें और मतगणना करें!
           </p>
         </div>
 
@@ -883,16 +1486,16 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
       {/* PIPELINE PROGRESS INDICATOR */}
       <div className="grid grid-cols-4 bg-slate-100 border border-slate-200 p-1.5 rounded-2xl text-center text-[10px] md:text-xs font-black text-slate-500 gap-1 select-none">
         <span className={`py-2 rounded-xl transition ${step === "card-creation" ? "bg-orange-500 text-white shadow-sm" : ""}`}>
-          १. वोटर रजिस्ट्रेशन
+          1. वोटर रजिस्ट्रेशन
         </span>
         <span className={`py-2 rounded-xl transition ${step === "booth" ? "bg-blue-600 text-white shadow-sm" : ""}`}>
-          २. मतदान ईवीएम कक्ष
+          2. मतदान ईवीएम कक्ष
         </span>
         <span className={`py-2 rounded-xl transition ${step === "counting" ? "bg-amber-500 text-white shadow-sm" : ""}`}>
-          ३. लाइव मतगणना
+          3. लाइव मतगणना
         </span>
         <span className={`py-2 rounded-xl transition ${step === "winner" ? "bg-emerald-600 text-white shadow-sm" : ""}`}>
-          ४. विजयी पीएम उत्सव
+          4. विजयी पीएम उत्सव
         </span>
       </div>
 
@@ -966,7 +1569,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                 }`}
               >
                 <Users className="w-4 h-4 text-orange-500" />
-                <span>१. मतदाता पंजीयन कार्यालय ({voters.length} पंजीकृत)</span>
+                <span>1. मतदाता पंजीयन कार्यालय ({voters.length} पंजीकृत)</span>
               </button>
 
               <button
@@ -982,7 +1585,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                 }`}
               >
                 <Scale className="w-4 h-4 text-indigo-600" />
-                <span>२. प्रत्याशी (उम्मीदवार) नामांकन ({candidates.length} मैदान में)</span>
+                <span>2. प्रत्याशी (उम्मीदवार) नामांकन ({candidates.length} मैदान में)</span>
               </button>
             </div>
 
@@ -1022,7 +1625,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-black text-slate-400 block">गुप्त ४-अंकीय पिन कोड (EVM Authentication PIN):</label>
+                    <label className="text-[11px] font-black text-slate-400 block">गुप्त 4-अंकीय पिन कोड (EVM Authentication PIN):</label>
                     <input
                       type="text"
                       required
@@ -1071,7 +1674,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       onClick={addDefaultClassmates}
                       className="py-3 px-4 bg-slate-800 hover:bg-slate-900 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer"
                     >
-                      ⚡ ४ दोस्त एक साथ जोड़ें
+                      ⚡ 4 दोस्त एक साथ जोड़ें
                     </button>
                   </div>
                 </form>
@@ -1082,11 +1685,45 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                     <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                       📋 पंजीकृत बाल मतदाता सूची ({voters.length})
                     </h3>
-                    {voters.length > 0 && (
-                      <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">
-                        रजिस्ट्रेशन सक्रिय
+                    <div className="flex gap-1.5 items-center">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                        votersLocked 
+                          ? "bg-rose-50 border-rose-200 text-rose-700" 
+                          : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      }`}>
+                        {votersLocked ? "🔒 सूची लॉक है" : "🔓 सक्रिय प्रविष्टि"}
                       </span>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* Lock/Unlock Toggle Switch */}
+                  <div className="pt-1.5 pb-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newVal = !votersLocked;
+                        setVotersLocked(newVal);
+                        localStorage.setItem("samvidhan_election_voters_locked", newVal ? "true" : "false");
+                        playSoundAtFrequency(newVal ? 400 : 700, 0.15);
+                      }}
+                      className={`w-full py-2.5 px-3 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-2 border-2 cursor-pointer shadow-xs ${
+                        votersLocked
+                          ? "bg-rose-50 border-rose-250 hover:bg-rose-100 text-rose-800"
+                          : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-800"
+                      }`}
+                    >
+                      {votersLocked ? (
+                        <>
+                          <Lock className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                          <span>पंजीकरण लॉक है • अनलॉक करने के लिए क्लिक करें</span>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>पंजीकरण खुला है • सुरक्षित लॉक करने के लिए क्लिक करें</span>
+                        </>
+                      )}
+                    </button>
                   </div>
 
                   {voters.length === 0 ? (
@@ -1094,7 +1731,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       <Users className="w-12 h-12 text-slate-350 block mb-2 animate-bounce" />
                       <strong className="text-sm text-slate-500 font-black">अभी कोई बच्चा पंजीकृत नहीं है!</strong>
                       <p className="text-xs text-slate-400 max-w-xs mt-1 leading-normal font-bold">
-                        कक्षा के विद्यार्थियों को जोड़ने के लिए बायीं ओर फॉर्म भरें या तुरंत शुरुआत के लिए <strong>'४ दोस्त एक साथ जोड़ें'</strong> पर क्लिक करें।
+                        कक्षा के विद्यार्थियों को जोड़ने के लिए बायीं ओर फॉर्म भरें या तुरंत शुरुआत के लिए <strong>'4 दोस्त एक साथ जोड़ें'</strong> पर क्लिक करें।
                       </p>
                     </div>
                   ) : (
@@ -1184,7 +1821,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                           }
                         } else {
                           if (candidates.length < 2) {
-                            alert("निष्पक्ष चुनाव के लिए चुनाव मैदान में कम से कम २ प्रत्याशी होना अनिवार्य है!");
+                            alert("निष्पक्ष चुनाव के लिए चुनाव मैदान में कम से कम 2 प्रत्याशी होना अनिवार्य है!");
                             return;
                           }
                           setCandidatesLocked(true);
@@ -1452,7 +2089,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                                     type="button"
                                     onClick={() => {
                                       if (candidates.length <= 2) {
-                                        alert("सुरक्षित लोकतंत्र हेतु: चुनाव मैदान में कम से कम २ विज्ञापित प्रत्याशी होना अनिवार्य है!");
+                                        alert("सुरक्षित लोकतंत्र हेतु: चुनाव मैदान में कम से कम 2 विज्ञापित प्रत्याशी होना अनिवार्य है!");
                                         return;
                                       }
                                       const confirmDelete = window.confirm(`क्या आप सचमुच ${cand.name} का नामांकन रद्द कर इन्हें सूची से हटाना चाहते हैं?`);
@@ -1506,7 +2143,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
             {/* Action footer to step 2 */}
             <div className="pt-6 border-t flex justify-between items-center bg-white/50 p-4 rounded-2xl mt-4">
               <div className="text-xs text-slate-500 font-bold">
-                🚩 {voters.length > 0 ? `मस्त! आपके पास ${voters.length} बाल वोटर तथा ${candidates.length} उम्मीदवार उपलब्ध हैं।` : "मतदान के लिए न्यूनतम १ मतदाता आवश्यक है।"}
+                🚩 {voters.length > 0 ? `मस्त! आपके पास ${voters.length} बाल वोटर तथा ${candidates.length} उम्मीदवार उपलब्ध हैं।` : "मतदान के लिए न्यूनतम 1 मतदाता आवश्यक है।"}
               </div>
               <button
                 disabled={voters.length === 0 || candidates.length < 2 || !candidatesLocked}
@@ -1528,6 +2165,75 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
         {/* ================= STEP 2: PHYSICAL EVM & VVPAT BOOTH ================= */}
         {step === "booth" && (
           <div className="space-y-6">
+            
+            {/* 📜 CONSTITUTIONAL RULE LETTERHEAD NOTE */}
+            <div className="bg-amber-50/75 border-2 border-amber-200 rounded-3xl p-5 text-left space-y-3.5 shadow-xs font-sans text-xs text-amber-955 relative overflow-hidden transition-all duration-300">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-100 opacity-20 rounded-full -mr-6 -mt-6"></div>
+              
+              <div className="flex items-center justify-between gap-4 border-b border-amber-200 pb-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">📜</span>
+                  <div>
+                    <h4 className="text-xs font-black text-amber-900 uppercase tracking-widest">
+                      संवैधानिक मर्यादा व निर्वाचन नियम निर्देशिका पत्र (Model Form SV-17)
+                    </h4>
+                    <p className="text-[10px] text-amber-700 font-bold">
+                      भारत के संविधान व जनप्रतिनिधित्व अधिनियम, 1951 (Representation of the People Act) के पावन नियमों पर आधारित
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setShowConstitutionalNote(!showConstitutionalNote)} 
+                  className="bg-amber-100 hover:bg-amber-200 text-amber-950 px-3 py-1 rounded-xl font-extrabold text-[10px] cursor-pointer transition active:scale-95"
+                >
+                  {showConstitutionalNote ? "▲ नियम पत्र समेटें" : "▼ विस्तृत नियम पत्र खोलें"}
+                </button>
+              </div>
+
+              {showConstitutionalNote && (
+                <div className="space-y-3 font-semibold text-slate-700 leading-relaxed text-[11.5px] max-w-7xl animate-fadeIn">
+                  <p className="text-amber-900 font-bold italic">
+                    "यह बाल चुनाव महायज्ञ पूर्णतः स्वतंत्र, निष्पक्ष लोकतांत्रिक सिद्धांतों और देश के निर्वाचन विलेखों के नियमों के अंतर्गत आयोजित है ताकि बच्चे विधिक रूप से शिक्षित हो सकें:"
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    <div className="bg-white/60 p-3 rounded-2xl border border-amber-150/70 space-y-1">
+                      <span className="text-xs font-extrabold text-amber-900 block flex items-center gap-1">⚖️ अनुच्छेद 326 (Article 326) - वयस्क मताधिकार व गुप्त मतदान:</span>
+                      <p className="text-[10.5px] leading-relaxed">
+                        समानता का अधिकार! प्रत्येक प्रविष्ट मतदाता को बिना किसी संकोच के मतदान का अधिकार है। यहाँ मतदान की गोपनीयता **(Secret Ballot)** सुनिश्चित की गयी है; पीठासीन अधिकारी या मशीन संचालक भी यह नहीं जान सकते कि किस मतदाता ने किसे वोट दिया। इसलिए मतदाता विवरण पूर्णतः गुप्त (Show/Hide) रखा जाता है।
+                      </p>
+                    </div>
+
+                    <div className="bg-white/60 p-3 rounded-2xl border border-amber-150/70 space-y-1">
+                      <span className="text-xs font-extrabold text-amber-900 block flex items-center gap-1">🏛️ अनुच्छेद 324 (Article 324) - निष्पक्ष संचालन व नियंत्रण:</span>
+                      <p className="text-[10.5px] leading-relaxed">
+                        स्वतंत्र चुनाव कराने हेतु निर्देशन और नियंत्रण शक्ति चुनाव संचालन समिति और पीठासीन अधिकारियों में समाहित होती है। मतदाताओं की पहचान का मिलान करने के बाद ही बैलेट बटन सक्षम (Voter Verification PIN / Register) किया जाता है।
+                      </p>
+                    </div>
+
+                    <div className="bg-white/60 p-3 rounded-2xl border border-amber-150/70 space-y-1">
+                      <span className="text-xs font-extrabold text-amber-900 block flex items-center gap-1">🔒 फर्जी वोट प्रबंधन व निवेदित मतपत्र (Tendered Ballot - Rule 49P):</span>
+                      <p className="text-[10.5px] leading-relaxed">
+                        शिक्षार्थियों के लिए नीतिगत बात: यदि कोई असामाजिक तत्व किसी असली मतदाता के नाम पर पहले ही 'फर्जी वोट' डालकर चला गया है, तो देश के निर्वाचन नियमावली कानून (नियम 49P) के अनुसार असली मतदाता का अधिकार छीना नहीं जाता। उन्हें **निवेदित मत (Tendered Vote)** द्वारा बैलेट पेपर पर स्वतंत्र मत डालने की व्यवस्था यहाँ दी गयी है।
+                      </p>
+                    </div>
+
+                    <div className="bg-white/60 p-3 rounded-2xl border border-amber-150/70 space-y-1">
+                      <span className="text-xs font-extrabold text-amber-900 block flex items-center gap-1">🎲 बराबर मत / टाई होने पर प्रक्रिया (Sec. 102 Draw of Lots):</span>
+                      <p className="text-[10.5px] leading-relaxed">
+                        यदि मतगणना के समय किन्हीं दो प्रत्याशियों को बिल्कुल बराबर (Tie) मत मिलते हैं, तो जनप्रतिनिधित्व अधिनियम, 1951 की धारा 102 के तहत पूरी निष्पक्षता से **पर्ची डालकर ड्रॉ (Draw of Lots)** द्वारा परिणाम तय होता है जो यहाँ डिजिटल सिमुलेशन में भी लागू है।
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-amber-200/60 pt-2 text-center text-[10px] text-amber-800 font-extrabold flex flex-col sm:flex-row justify-between items-center gap-1.5 px-0.5">
+                    <span>संविधान निर्माता: भारतरत्न डॉ. भीमराव आंबेडकर की लोकतान्त्रिक शिक्षण मार्गदर्शिका स्मृति 🏛️</span>
+                    <span className="bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg border border-amber-200 text-[10.5px]">पंजीकृत चुनाव संदर्भ क्रमांक: <strong className="text-rose-700 font-mono font-black">{schoolRegCode}</strong></span>
+                  </div>
+                </div>
+              )}
+            </div>
             
             {/* Header statistics info */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-blue-50 border border-blue-100 p-4 rounded-2xl gap-3">
@@ -1657,7 +2363,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                 </div>
 
                 {/* Return button or Finish polling */}
-                <div className="pt-2">
+                <div className="pt-2 space-y-3">
                   <button
                     onClick={() => {
                       setActiveVoterId(null);
@@ -1667,6 +2373,58 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   >
                     ⬅️ मतदाता पंजीयन सूची में वापस जाएं
                   </button>
+
+                  {/* 🛡️ anti-fraud and special procedures panel */}
+                  <div className="bg-slate-50 border-2 border-dashed border-slate-200 p-3.5 rounded-2xl space-y-2 text-left">
+                    <div className="flex items-center gap-1.5 text-rose-800 font-black text-[11px] uppercase tracking-wider">
+                      <Scale className="w-4 h-4 text-rose-600" />
+                      <span>🛡️ फ़र्जी वोटिंग निवारण केंद्र</span>
+                    </div>
+                    
+                    <p className="text-[10px] text-slate-500 font-bold leading-normal">
+                      यदि कोई फर्जी व्यक्ति मतदान करने की कोशिश करे या किसी का वोट पहले ही चोरी हो गया हो, तो संविधान के तहत ये उपाय करें:
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChallengeStep(1);
+                          setIsChallengeSuccess(null);
+                          setChallengeVoterName("");
+                          setChallengedVoter(null);
+                          setIsChallengedVoteSimActive(true);
+                          playPaperCut();
+                          setMascotData({
+                            mood: "thinking",
+                            text: "फर्जी वोट डालने वाले का पर्दाफाश करना जरूरी है! आइए चैलेंज वोट (Challenged Vote - Rule 49J) की प्रक्रिया समझें।"
+                          });
+                        }}
+                        className="w-full py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 text-[10px] font-black rounded-lg cursor-pointer transition flex items-center justify-center gap-1.5"
+                      >
+                        <span>🔍 फ़र्जी वोट पकड़ें (चैलेंज मत - 49J)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTenderedStep(1);
+                          setSelectedTenderedVoterId("");
+                          setSelectedTenderedCandidateId(null);
+                          setTenderedVoter(null);
+                          setIsTenderedVoteSimActive(true);
+                          playPaperCut();
+                          setMascotData({
+                            mood: "thinking",
+                            text: "अरे! क्या किसी का मत पहले ही फर्जी ढंग से डल चुका है? उनका वोट जाया नहीं होगा। आइए 'टेंडर वोट' (Rule 49P) प्रक्रिया देखें।"
+                          });
+                        }}
+                        className="w-full py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[10px] font-black rounded-lg cursor-pointer transition flex items-center justify-center gap-1.5"
+                      >
+                        <span>✉️ टेंडर मत डालें (निवेदित वोट - 49P)</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1681,7 +2439,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                         <span className="text-2xl block animate-pulse">🔐</span>
                         <h4 className="font-extrabold text-sm text-slate-800">मतदाता पहचान एवं पिन सुरक्षा जाँच</h4>
                         <p className="text-[10px] text-slate-500 font-bold leading-normal">
-                          सुरक्षित ईवीएम कक्ष में आगे बढ़ते समय <strong>{activeVoterObj.name}</strong> को अपना ४-अंकीय गुप्त पिन डालना होगा।
+                          सुरक्षित ईवीएम कक्ष में आगे बढ़ते समय <strong>{activeVoterObj.name}</strong> को अपना 4-अंकीय गुप्त पिन डालना होगा।
                         </p>
                       </div>
 
@@ -1704,13 +2462,13 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
 
                       {pinAttempts > 0 && !pinLockedOut && (
                         <p className="text-red-600 text-[10px] bg-red-50 text-center py-1.5 px-3 rounded-lg border border-red-150 font-bold animate-shake">
-                          ⚠️ गलत पिन कोड! कोशिश: {pinAttempts} / २. यदि अगली बार गलत हुआ, तो आप इस बार वोट नहीं डाल पाएंगे!
+                          ⚠️ गलत पिन कोड! कोशिश: {pinAttempts} / 2. यदि अगली बार गलत हुआ, तो आप इस बार वोट नहीं डाल पाएंगे!
                         </p>
                       )}
 
                       {pinLockedOut ? (
                         <div className="text-center text-red-700 bg-red-100 p-3 rounded-xl border border-red-300 font-bold text-xs space-y-2">
-                          <p>❌ २ गलत प्रयास! आपका मतदाता कार्ड सुरक्षा कारणों से अस्थायी रूप से लॉक हो गया है!</p>
+                          <p>❌ 2 गलत प्रयास! आपका मतदाता कार्ड सुरक्षा कारणों से अस्थायी रूप से लॉक हो गया है!</p>
                           <button
                             type="button"
                             onClick={() => {
@@ -1933,7 +2691,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                               <span className="text-2xl opacity-20 block mb-1">🖨️</span>
                               <strong className="text-[10px] font-black block">काठ-शीक्षा पर्ची विंडो</strong>
                               <p className="text-[8px] mt-1 leading-normal">
-                                ईवीएम पर वोट डलते ही उम्मीदवार का विवरण पर्ची में ३.५ सेकंड के लिए प्रकट होगा ताकि आप अपना वोट स्वयं सत्यापित कर सकें।
+                                ईवीएम पर वोट डलते ही उम्मीदवार का विवरण पर्ची में 3.5 सेकंड के लिए प्रकट होगा ताकि आप अपना वोट स्वयं सत्यापित कर सकें।
                               </p>
                             </div>
                           )}
@@ -2330,7 +3088,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   })}
                 </div>
 
-                {/* Voter card checking ticker animation */}
+                 {/* Voter card checking ticker animation */}
                 <div className="bg-amber-50/50 rounded-xl p-3 border-2 border-dashed border-amber-200 text-center text-xs font-semibold text-slate-600 min-h-16 flex items-center justify-center">
                   {countingIndex === -1 ? (
                     <p className="font-bold text-amber-800 leading-normal">
@@ -2345,6 +3103,48 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       <p className="text-[10px] text-slate-500 font-bold block bg-white border border-amber-100 p-1 rounded-md w-fit mx-auto">
                         प्राप्त परिणाम: {candidates.find(c => c.id === voters.filter(v => v.voted)[countingIndex]?.votedTo)?.symbol} {candidates.find(c => c.id === voters.filter(v => v.voted)[countingIndex]?.votedTo)?.name} ({candidates.find(c => c.id === voters.filter(v => v.voted)[countingIndex]?.votedTo)?.party}) के लिए!
                       </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ✉️ TENDERED VOTES SECRET REPORT REGISTER */}
+                <div className="bg-slate-50 border-2 border-dashed border-slate-205 p-4 rounded-2xl space-y-3 text-left font-sans shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-amber-800 font-extrabold text-[11px] uppercase tracking-wider">
+                      <Scale className="w-4 h-4 text-amber-600" />
+                      <span>✉️ निवेदित मत रजिस्टर (Tendered Votes Ledger - Form 49P)</span>
+                    </div>
+                    <span className="bg-amber-100 text-amber-850 border border-amber-250 font-black text-[10px] px-2 py-0.5 rounded-full select-none">
+                      कुल मतपत्र: {tenderedVotes.length}
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-slate-500 font-bold leading-normal">
+                    <strong>संवैधानिक प्रावधान:</strong> जनप्रतिनिधित्व कानून 1951 के अंतर्गत, ईवीएम मत गणना समाप्त होने के बाद ये मतपत्र अलग से सीलबंद लिफ़ाफ़ों में सुरक्षित रहते हैं। इन्हें स्वचालित रूप से कुल में नहीं मिलाया जाता जब तक न्यायालय आदेश न दे।
+                  </p>
+
+                  {tenderedVotes.length > 0 ? (
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {tenderedVotes.map((tb) => {
+                        const targetCand = candidates.find(c => c.id === tb.candidateId);
+                        return (
+                          <div key={tb.id} className="bg-white border-2 border-amber-200/40 rounded-xl p-3 flex items-center justify-between text-xs font-bold text-slate-800 shadow-sm leading-tight">
+                            <div>
+                              <p className="text-slate-900 font-extrabold leading-none">{tb.voterName}</p>
+                              <span className="text-[9px] text-slate-400 font-bold block mt-1">आईडी: {tb.voterId.split("-").pop()} • मतपत्र सं: {tb.id}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="bg-emerald-50 text-emerald-800 border-2 border-dashed border-emerald-250 px-2.5 py-1 rounded-lg text-[10.5px] font-black">
+                                {targetCand?.symbol} {targetCand?.name}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-xl p-3.5 border-2 border-dashed border-stone-200 text-center text-[10.5px] text-slate-400 font-bold">
+                      📪 इस चुनाव में कोई भी निवेदित मतपत्र (Tendered Votes) नहीं डला। (अर्थात् कोई फर्जी मतदान का मामला पीठासीन अधिकारी के समक्ष नहीं आया)
                     </div>
                   )}
                 </div>
@@ -2377,7 +3177,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       ✨ नवनिर्वाचित बाल प्रधानमंत्री (Bal Pradhan Mantri) ✨
                     </div>
                     <p className="text-xs text-slate-700 font-extrabold max-w-md mx-auto leading-relaxed">
-                      प्रिय <strong>{mainWinner.name}</strong>, आपको लोकसभा बाल चुनाव २०२६ में ऐतिहासिक जीत हासिल हुई है! लोकतांत्रिक मर्यादा के साथ बाल मंत्रिमण्डल के संवर्धन का आपका घोषणापत्र अब पूर्णतया लागू होगा।
+                      प्रिय <strong>{mainWinner.name}</strong>, आपको लोकसभा बाल चुनाव 2026 में ऐतिहासिक जीत हासिल हुई है! लोकतांत्रिक मर्यादा के साथ बाल मंत्रिमण्डल के संवर्धन का आपका घोषणापत्र अब पूर्णतया लागू होगा।
                     </p>
                     <div className="flex gap-2 justify-center items-center font-black text-[10px] text-orange-900 bg-orange-100 border border-orange-200 px-3.5 py-1.5 rounded-full w-fit mx-auto select-none shadow-inner animate-pulse">
                       <span>🌸 संसद संप्रभु: {mainWinner.name}</span>
@@ -2400,7 +3200,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
 
                     <span className="text-5xl block animate-bounce" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.15))" }}>🏆</span>
                     <span className="text-[10px] font-black tracking-widest text-[#a7f3d0] uppercase block">
-                      लोकसभा बाल चुनाव परिणाम २०२६
+                      लोकसभा बाल चुनाव परिणाम 2026
                     </span>
                     <h3 className="text-3xl font-black drop-shadow-sm">
                       🎉 '{mainWinner.name}' बने देश के नए बाल प्रधानमंत्री! 🎉
@@ -2494,7 +3294,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       competitivenessColor = "bg-rose-50 border-rose-250 text-rose-800";
                     } else if (actualMargin === 1) {
                       competitivenessLabel = "ऐतिहासिक न्यूनतम अंतर (Narrowest Possible Gap - 1 Vote!)";
-                      competitivenessDesc = "केवल १ वोट की जीत! यह चीख-चीख कर साबित करता है कि लोकतंत्र में एक अकेले मत की ताकत कितनी असीम और निर्णायक होती है।";
+                      competitivenessDesc = "केवल 1 वोट की जीत! यह चीख-चीख कर साबित करता है कि लोकतंत्र में एक अकेले मत की ताकत कितनी असीम और निर्णायक होती है।";
                       competitivenessColor = "bg-orange-55 border-orange-200 text-orange-950 text-red-900";
                     } else if (actualMargin <= 3) {
                       competitivenessLabel = "अत्यंत कड़ा मुकाबला (Margin of Under 4 Votes!)";
@@ -2822,13 +3622,18 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       <div className="text-center space-y-2 pb-5 border-b-4 border-double border-slate-300">
                         <span className="text-4xl block">🏛️</span>
                         <h3 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
-                          {districtName ? `${districtName} • ` : ""}{blockName ? `ब्लॉक ${blockName} • ` : ""}{schoolName || "बाल एकता विद्यालय"}
+                          {schoolName || "बाल एकता विद्यालय"}{blockName ? ` • ब्लॉक ${blockName}` : ""}{districtName ? ` • जिला ${districtName}` : ""}
                         </h3>
-                        <p className="text-xs bg-indigo-50 border border-indigo-150 text-indigo-900 px-3 py-1 font-bold rounded-full w-fit mx-auto mt-1">
-                          🗳️ लोकसभा बाल लोकतान्त्रिक चुनाव उत्सव - २०२६ (समग्र चुनाव परिणाम एवं भागीदारी रिपोर्ट)
-                        </p>
+                        <div className="flex flex-wrap gap-2 justify-center py-1">
+                          <span className="text-xs bg-indigo-50 border border-indigo-150 text-indigo-900 px-3 py-0.5 font-extrabold rounded-full">
+                            🗳️ बाल चुनाव उत्सव - 2026
+                          </span>
+                          <span className="text-xs bg-rose-50 border border-rose-200 text-rose-800 px-3 py-0.5 font-extrabold rounded-full font-mono">
+                            पंजीकरण आईडी (Reg. ID): {schoolRegCode}
+                          </span>
+                        </div>
                         <p className="text-[10px] text-slate-400 font-extrabold tracking-wider block">
-                          दिनांक: {new Date().toLocaleDateString('hi-IN', { year: 'numeric', month: 'long', day: 'numeric' })} | अनुच्छेद ३२६ सिमुलेशन
+                          दिनांक: {new Date().toLocaleDateString('hi-IN', { year: 'numeric', month: 'long', day: 'numeric' })} | अनुच्छेद 326 गुप्त मतदान प्रणाली
                         </p>
                       </div>
 
@@ -2856,7 +3661,8 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                         <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
                           <table className="w-full text-left text-xs border-collapse">
                             <thead>
-                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black">
+                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black text-[11px]">
+                                <th className="p-3 text-center">क्र. सं. (S.No.)</th>
                                 <th className="p-3 text-center">चिन्ह</th>
                                 <th className="p-3">प्रत्याशी का नाम</th>
                                 <th className="p-3">राजनैतिक दल</th>
@@ -2865,8 +3671,9 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                               </tr>
                             </thead>
                             <tbody>
-                              {candidates.map((cand) => (
+                              {candidates.map((cand, idx) => (
                                 <tr key={cand.id} className="border-b border-slate-150 hover:bg-slate-50 font-semibold text-slate-700">
+                                  <td className="p-3 text-center font-mono font-black text-rose-600 text-xs">{toRoman(idx + 1)}</td>
                                   <td className="p-3 text-center text-xl">{cand.symbol}</td>
                                   <td className="p-3 font-bold text-slate-900">{cand.name}</td>
                                   <td className="p-3">{cand.party}</td>
@@ -2893,7 +3700,8 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                         <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white max-h-72 overflow-y-auto">
                           <table className="w-full text-left text-xs border-collapse">
                             <thead>
-                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black">
+                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black text-[11px]">
+                                <th className="p-3 text-center">क्र. सं. (S.No.)</th>
                                 <th className="p-3">मतदाता आईडी</th>
                                 <th className="p-3">मतदाता का नाम</th>
                                 <th className="p-3 text-center">स्टीकर</th>
@@ -2903,12 +3711,13 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                               </tr>
                             </thead>
                             <tbody>
-                              {voters.map((voter) => {
+                              {voters.map((voter, idx) => {
                                 const matchedCandidate = voter.votedTo !== undefined 
                                   ? candidates.find(c => c.id === voter.votedTo) 
                                   : null;
                                 return (
                                   <tr key={voter.id} className="border-b border-slate-150 hover:bg-slate-50 font-semibold text-slate-700">
+                                    <td className="p-3 text-center font-mono font-black text-indigo-750 text-xs">{toRoman(idx + 1)}</td>
                                     <td className="p-3 font-mono text-[10px] text-slate-400">{voter.id}</td>
                                     <td className="p-3 font-bold text-slate-900">{voter.name}</td>
                                     <td className="p-3 text-center text-lg">{voter.symbol}</td>
@@ -2924,13 +3733,14 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                                         </span>
                                       )}
                                     </td>
-                                    <td className="p-3 font-medium">
+                                    <td className="p-3 font-medium text-slate-500">
                                       {matchedCandidate ? (
-                                        <span className="font-bold text-indigo-700">
-                                          {matchedCandidate.symbol} {matchedCandidate.name} ({matchedCandidate.party})
+                                        <span className="font-extrabold text-slate-500 flex items-center gap-1 justify-start">
+                                          <span className="text-emerald-600">🔒</span>
+                                          <span className="text-[10.5px]">गोपनीय (Secret Ballot - Art. 326)</span>
                                         </span>
                                       ) : (
-                                        <span className="text-slate-400 italic">- मतदान नहीं किया -</span>
+                                        <span className="text-slate-400 italic font-bold">- मतदान नहीं किया -</span>
                                       )}
                                     </td>
                                   </tr>
@@ -2948,7 +3758,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                             चुनाव आयुक्त हस्ताक्षर
                           </div>
                           <div className="text-[10px] text-slate-450 font-extrabold mt-0.5 font-sans">
-                            {districtName ? `${districtName} • ` : ""}{blockName ? `ब्लॉक ${blockName} • ` : ""}{schoolName}
+                            {schoolName}{blockName ? ` • ब्लॉक ${blockName}` : ""}{districtName ? ` • जिला ${districtName}` : ""}
                           </div>
                         </div>
                         <div className="flex flex-col items-center">
@@ -2976,7 +3786,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                           printWindow.document.write(`
                             <html>
                               <head>
-                                <title>अंतिम चुनाव रिपोर्ट - ${districtName ? districtName + " - " : ""}${blockName ? "ब्लॉक " + blockName + " - " : ""}${schoolName}</title>
+                                <title>अंतिम चुनाव रिपोर्ट - ${schoolName}${blockName ? " - ब्लॉक " + blockName : ""}${districtName ? " - जिला " + districtName : ""}</title>
                                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;700;900&family=Noto+Sans+Devanagari:wght@450;700;900&display=swap" rel="stylesheet" />
                                 <style>
                                   body {
@@ -3115,7 +3925,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       संविधान पाठ: चुनाव क्यों महत्वपूर्ण है? (Why Elections Matter?)
                     </h4>
                     <p className="font-semibold text-slate-700">
-                      प्यारे बच्चों! हमारा पावन संविधान सुनिश्चित करता है कि देश को चलाने का दायित्व किसी राजा या धनाढ्य व्यक्ति को जन्म से नहीं मिलता। <strong>अनुच्छेद ३२६</strong> के तहत प्रत्येक भारतीय नागरिक को अपनी पसंद से नेता चुनने के लिए <strong>वयस्क मताधिकार (Universal Adult Suffrage)</strong> मिला है। हम बिना किसी पक्षपात के, गुप्त मतदान के माध्यम से शांतिपूर्ण तरीकों से अपनी सरकार चुनते हैं। इसी उत्तम शक्ति को <strong>लोकतंत्र (Democracy)</strong> कहते हैं।
+                      प्यारे बच्चों! हमारा पावन संविधान सुनिश्चित करता है कि देश को चलाने का दायित्व किसी राजा या धनाढ्य व्यक्ति को जन्म से नहीं मिलता। <strong>अनुच्छेद 326</strong> के तहत प्रत्येक भारतीय नागरिक को अपनी पसंद से नेता चुनने के लिए <strong>वयस्क मताधिकार (Universal Adult Suffrage)</strong> मिला है। हम बिना किसी पक्षपात के, गुप्त मतदान के माध्यम से शांतिपूर्ण तरीकों से अपनी सरकार चुनते हैं। इसी उत्तम शक्ति को <strong>लोकतंत्र (Democracy)</strong> कहते हैं।
                     </p>
                   </div>
 

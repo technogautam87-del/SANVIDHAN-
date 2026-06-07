@@ -195,7 +195,7 @@ function ArticleFlipCard({
 export const ARTICLES_DATA: ArticleItem[] = [
   {
     id: "art-1",
-    number: "अनुच्छेद १",
+    number: "अनुच्छेद 1",
     title: "भारत: राज्यों का संघ (Union of States)",
     description: "हमारा प्यारा भारत विभिन्न राज्यों और संस्कृतियों का एक अटूट संघ है, जो विविधता में एकता का भव्य संदेश देता है।",
     defaultYtUrl: "https://www.youtube.com/watch?v=0fZDyK_tVFU",
@@ -204,7 +204,7 @@ export const ARTICLES_DATA: ArticleItem[] = [
   },
   {
     id: "art-14",
-    number: "अनुच्छेद १४",
+    number: "अनुच्छेद 14",
     title: "समानता का अधिकार (Equality before Law)",
     description: "कानून की नजरों में सभी बराबर हैं! चाहे अमीर हो या गरीब, लड़का हो या लड़की, संविधान सबको एक समान सुरक्षा प्रदान करता है।",
     defaultYtUrl: "https://www.youtube.com/watch?v=FAtasE6P110",
@@ -213,7 +213,7 @@ export const ARTICLES_DATA: ArticleItem[] = [
   },
   {
     id: "art-15",
-    number: "अनुच्छेद १५",
+    number: "अनुच्छेद 15",
     title: "भेदभाव का अंत (Prohibition of Discrimination)",
     description: "किसी भी बच्चे के साथ धर्म, जाति, लिंग या जन्मस्थान के आधार पर स्कूल, खेल के मैदान या सार्वजनिक स्थलों पर भेदभाव नहीं किया जा सकता।",
     defaultYtUrl: "https://www.youtube.com/watch?v=FAtasE6P110",
@@ -222,7 +222,7 @@ export const ARTICLES_DATA: ArticleItem[] = [
   },
   {
     id: "art-19",
-    number: "अनुच्छेद १९",
+    number: "अनुच्छेद 19",
     title: "बोलने व विचार रखने की आजादी (Freedom of Speech)",
     description: "सभी बच्चों को अपनी बात रखने, सवाल पूछने, चित्र बनाने, और शांतिपूर्ण ढंग से मित्र बनाने का पूरा संवैधानिक अधिकार है।",
     defaultYtUrl: "https://www.youtube.com/watch?v=7uV8-w8w6kE",
@@ -231,7 +231,7 @@ export const ARTICLES_DATA: ArticleItem[] = [
   },
   {
     id: "art-21",
-    number: "अनुच्छेद २१",
+    number: "अनुच्छेद 21",
     title: "जीवन और सम्मान का अधिकार (Right to Life & Liberty)",
     description: "प्रत्येक व्यक्ति को सम्मान के साथ जीने, स्वच्छ हवा-पानी का आनंद लेने और सुरक्षित माहौल में स्वतंत्र रहने का मौलिक अधिकार प्राप्त है।",
     defaultYtUrl: "https://www.youtube.com/watch?v=W0q34N8P-bA",
@@ -240,16 +240,16 @@ export const ARTICLES_DATA: ArticleItem[] = [
   },
   {
     id: "art-21a",
-    number: "अनुच्छेद २१ए",
+    number: "अनुच्छेद 21ए",
     title: "मुफ़्त व अनिवार्य शिक्षा (Right to Education)",
-    description: "६ से १४ साल के सभी बच्चों के लिए स्कूली शिक्षा पाना उनका मौलिक अधिकार है। 'आधी रोटी खाएंगे, स्कूल जरूर जाएंगे!'",
+    description: "6 से 14 साल के सभी बच्चों के लिए स्कूली शिक्षा पाना उनका मौलिक अधिकार है। 'आधी रोटी खाएंगे, स्कूल जरूर जाएंगे!'",
     defaultYtUrl: "https://www.youtube.com/watch?v=34d7U0f42vU",
     icon: "🎒",
     color: "from-amber-500 to-yellow-500 border-amber-200 bg-amber-50/55"
   },
   {
     id: "art-32",
-    number: "अनुच्छेद ३२",
+    number: "अनुच्छेद 32",
     title: "संवैधानिक उपचार (Constitutional Remedies)",
     description: "यदि कोई आपके मौलिक अधिकारों को छीनने की कोशिश करे, तो आप सीधे उच्चतम न्यायालय (Supreme Court) जाकर इंसाफ मांग सकते हैं।",
     defaultYtUrl: "https://www.youtube.com/watch?v=UqQ-n6_YtD4",
@@ -258,7 +258,7 @@ export const ARTICLES_DATA: ArticleItem[] = [
   },
   {
     id: "art-51a",
-    number: "अनुच्छेद ५१ए",
+    number: "अनुच्छेद 51ए",
     title: "हमारे मूलभूत कर्तव्य (Fundamental Duties)",
     description: "जैसे संविधान हमें अधिकार देता है, वैसे ही राष्ट्रगान का आदर करना, प्रकृति को स्वच्छ रखना और वैज्ञानिक दृष्टिकोण अपनाना हमारा पावन कर्तव्य है।",
     defaultYtUrl: "https://www.youtube.com/watch?v=e_wK_I-n1wU",
@@ -267,9 +267,9 @@ export const ARTICLES_DATA: ArticleItem[] = [
   },
   {
     id: "art-326",
-    number: "अनुच्छेद ३२६",
+    number: "अनुच्छेद 326",
     title: "वयस्क मताधिकार (Universal Adult Suffrage)",
-    description: "१८ वर्ष या उससे बड़े प्रत्येक भारतीय नागरिक को बिना किसी भेदभाव के वोट देने और पसंदीदा सरकार चुनने का सर्वोच्च अधिकार प्राप्त है।",
+    description: "18 वर्ष या उससे बड़े प्रत्येक भारतीय नागरिक को बिना किसी भेदभाव के वोट देने और पसंदीदा सरकार चुनने का सर्वोच्च अधिकार प्राप्त है।",
     defaultYtUrl: "https://www.youtube.com/watch?v=T_8V06qO58A",
     icon: "🗳️",
     color: "from-fuchsia-600 to-pink-600 border-fuchsia-200 bg-fuchsia-50/50"
@@ -417,7 +417,7 @@ export default function ArticlesSection({ setMascotData }: ArticlesSectionProps)
               setSearchQuery(e.target.value);
               playClickTick();
             }}
-            placeholder="अनुच्छेद क्रमांक, विषय या विवरण खोजें... (उदा: समानता, शिक्षा, ३२)"
+            placeholder="अनुच्छेद क्रमांक, विषय या विवरण खोजें... (उदा: समानता, शिक्षा, 32)"
             className="w-full bg-slate-50 border-2 border-slate-200 hover:border-slate-300 focus:border-cyan-500 focus:bg-white text-slate-800 font-bold text-xs pl-10 pr-10 py-2.5 rounded-xl focus:outline-none transition-all placeholder:text-slate-400"
           />
           {searchQuery && (

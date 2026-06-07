@@ -14,6 +14,7 @@ import {
   Check, 
   AlertTriangle, 
   ShieldAlert, 
+  ShieldCheck,
   LogOut, 
   User, 
   Key, 
@@ -51,12 +52,51 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
+  
+  // Double Lock Step State (1: First Key, 2: Second Key)
+  const [lockStep, setLockStep] = useState<1 | 2>(1);
 
   // Sub-tab state
-  const [adminSubTab, setAdminSubTab] = useState<"articles" | "developers" | "signlanguage" | "schools">("articles");
+  const [adminSubTab, setAdminSubTab] = useState<"articles" | "developers" | "signlanguage" | "schools" | "securitylogs">("articles");
+
+  // Security Logs tracking state conforming to transparency audit requirements
+  const [securityLogs, setSecurityLogs] = useState<{
+    id: string;
+    timestamp: string;
+    actor: string;
+    action: string;
+    status: "success" | "warning" | "error";
+    details: string;
+  }[]>([]);
+
+  // Core helper to insert and persist dual-lock security log actions
+  const addSecurityLog = (actor: string, action: string, status: "success" | "warning" | "error", details: string) => {
+    const newLogItem = {
+      id: "SEC-" + Math.floor(Math.random() * 900000 + 100000),
+      timestamp: new Date().toLocaleString("hi-IN"),
+      actor,
+      action,
+      status,
+      details
+    };
+    setSecurityLogs(prev => {
+      const updated = [newLogItem, ...prev].slice(0, 30);
+      localStorage.setItem("samvidhan_admin_security_logs", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // Registered schools list
-  const [registeredSchools, setRegisteredSchools] = useState<Array<{ schoolName: string; districtName: string; blockName: string; timestamp: string; votersCount: number }>>([]);
+  const [registeredSchools, setRegisteredSchools] = useState<Array<{
+    schoolRegCode?: string;
+    schoolName: string;
+    districtName: string;
+    blockName: string;
+    timestamp: string;
+    votersCount: number;
+    candidatesCount?: number;
+    winnerName?: string;
+  }>>([]);
 
   // Google Drive state
   const [driveToken, setDriveToken] = useState<string | null>(null);
@@ -91,15 +131,27 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
     // Attempt real-time sync with Firestore "schools" collection
     const q = query(collection(db, "schools"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Array<{ schoolName: string; districtName: string; blockName: string; timestamp: string; votersCount: number }> = [];
+      const list: Array<{
+        schoolRegCode: string;
+        schoolName: string;
+        districtName: string;
+        blockName: string;
+        timestamp: string;
+        votersCount: number;
+        candidatesCount: number;
+        winnerName: string;
+      }> = [];
       snapshot.forEach((docSnapshot) => {
         const data = docSnapshot.data();
         list.push({
+          schoolRegCode: data.schoolRegCode || docSnapshot.id || "",
           schoolName: data.schoolName || "",
           districtName: data.districtName || "",
           blockName: data.blockName || "",
           timestamp: data.timestamp || new Date().toISOString(),
-          votersCount: typeof data.votersCount === "number" ? data.votersCount : 0
+          votersCount: typeof data.votersCount === "number" ? data.votersCount : 0,
+          candidatesCount: typeof data.candidatesCount === "number" ? data.candidatesCount : 0,
+          winnerName: data.winnerName || "अपरिभाषित"
         });
       });
       if (list.length > 0) {
@@ -142,14 +194,17 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
         setDriveToken(token);
       }
 
-      // Build CSV content formatted properly with UTF-8 BOM
-      const headers = ["S.No.", "School Name (विद्यालय का नाम)", "District (ज़िला)", "Block (ब्लॉक)", "Voter Count (वोटरों की संख्या)", "Registration Time (पंजीकरण समय)"];
+      // Build CSV content formatted properly with UTF-8 BOM conforming to statutory educational criteria
+      const headers = ["S.No.", "Registration Code (पंजीकरण कोड)", "District (ज़िला)", "Block (ब्लॉक)", "School Name (विद्यालय का नाम)", "Voters Count (कुल मतदाता)", "Candidates Count (कुल प्रत्याशी)", "Winner Name (विजेता प्रत्याशी)", "Created Date (समय)"];
       const rows = registeredSchools.map((school, index) => [
         index + 1,
-        `"${school.schoolName.replace(/"/g, '""')}"`,
+        `"${(school.schoolRegCode || "").replace(/"/g, '""')}"`,
         `"${(school.districtName || 'जयपुर').replace(/"/g, '""')}"`,
         `"${(school.blockName || 'सांगानेर').replace(/"/g, '""')}"`,
+        `"${school.schoolName.replace(/"/g, '""')}"`,
         school.votersCount || 0,
+        school.candidatesCount || 0,
+        `"${(school.winnerName || "अपरिभाषित").replace(/"/g, '""')}"`,
         `"${new Date(school.timestamp).toLocaleString('hi-IN')}"`
       ]);
       const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
@@ -267,9 +322,11 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
     }
   };
 
-  // Saved credentials in storage (or default: admin / admin)
-  const [adminId, setAdminId] = useState("admin");
-  const [adminPassword, setAdminPassword] = useState("admin");
+  // Saved credentials in storage for both locks (Lock 1 and Lock 2)
+  const [adminId1, setAdminId1] = useState("admin1");
+  const [adminPassword1, setAdminPassword1] = useState("admin1");
+  const [adminId2, setAdminId2] = useState("admin2");
+  const [adminPassword2, setAdminPassword2] = useState("admin2");
 
   // Custom URLs for articles
   const [articleUrls, setArticleUrls] = useState<Record<string, string>>({});
@@ -297,6 +354,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
   const [kushagraFeedback, setKushagraFeedback] = useState("");
 
   // Change credentials states
+  const [updateLockChoice, setUpdateLockChoice] = useState<"lock1" | "lock2">("lock1");
   const [newAdminId, setNewAdminId] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -343,21 +401,32 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
 
   // Initialize and load configurations
   useEffect(() => {
-    // 1. Get stored admin credentials or initialize default
-    const storedId = localStorage.getItem("samvidhan_admin_uid");
-    const storedPass = localStorage.getItem("samvidhan_admin_pwd");
-
-    if (storedId) {
-      setAdminId(storedId);
-    } else {
-      localStorage.setItem("samvidhan_admin_uid", "admin");
+    // 1. Get stored admin credentials for both locks (Lock 1 and Lock 2) or initialize defaults
+    let storedId1 = localStorage.getItem("samvidhan_admin_uid_1");
+    let storedPass1 = localStorage.getItem("samvidhan_admin_pwd_1");
+    if (!storedId1) {
+      storedId1 = "admin1";
+      localStorage.setItem("samvidhan_admin_uid_1", "admin1");
     }
-
-    if (storedPass) {
-      setAdminPassword(storedPass);
-    } else {
-      localStorage.setItem("samvidhan_admin_pwd", "admin");
+    if (!storedPass1) {
+      storedPass1 = "admin1";
+      localStorage.setItem("samvidhan_admin_pwd_1", "admin1");
     }
+    setAdminId1(storedId1);
+    setAdminPassword1(storedPass1);
+
+    let storedId2 = localStorage.getItem("samvidhan_admin_uid_2");
+    let storedPass2 = localStorage.getItem("samvidhan_admin_pwd_2");
+    if (!storedId2) {
+      storedId2 = "admin2";
+      localStorage.setItem("samvidhan_admin_uid_2", "admin2");
+    }
+    if (!storedPass2) {
+      storedPass2 = "admin2";
+      localStorage.setItem("samvidhan_admin_pwd_2", "admin2");
+    }
+    setAdminId2(storedId2);
+    setAdminPassword2(storedPass2);
 
     // Checking if an active session is saved (in SessionStorage so refresh doesn't logout)
     const sessionActive = sessionStorage.getItem("samvidhan_admin_session") === "true";
@@ -401,6 +470,27 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
       try {
         setSmsLogs(JSON.parse(storedLogs));
       } catch (err) {}
+    }
+
+    // 5. Load Security Logs
+    const storedSecLogs = localStorage.getItem("samvidhan_admin_security_logs");
+    if (storedSecLogs) {
+      try {
+        setSecurityLogs(JSON.parse(storedSecLogs));
+      } catch (editErr) {}
+    } else {
+      const initialLogs = [
+        {
+          id: "SEC-902183",
+          timestamp: new Date().toLocaleString("hi-IN"),
+          actor: "प्रणाली सुरक्षा (System Core)",
+          action: "डबल-लॉक सुरक्षा नियंत्रण सक्रिय (Dual-Lock Security Core Active)",
+          status: "success" as const,
+          details: "केंद्रीकृत सुरक्षा लॉगिंग सक्रिय। सभी प्रशासनिक खोलन और संपादन कार्यों की निगरानी जारी है।"
+        }
+      ];
+      setSecurityLogs(initialLogs);
+      localStorage.setItem("samvidhan_admin_security_logs", JSON.stringify(initialLogs));
     }
   }, []);
 
@@ -481,25 +571,54 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
     e.preventDefault();
     setLoginError("");
 
-    const currentSavedId = localStorage.getItem("samvidhan_admin_uid") || "admin";
-    const currentSavedPass = localStorage.getItem("samvidhan_admin_pwd") || "admin";
+    if (lockStep === 1) {
+      // Step 1: Validate Lock 1 Credentials
+      const currentSavedId1 = localStorage.getItem("samvidhan_admin_uid_1") || "admin1";
+      const currentSavedPass1 = localStorage.getItem("samvidhan_admin_pwd_1") || "admin1";
 
-    if (userIdInput === currentSavedId && passwordInput === currentSavedPass) {
-      playSfx(600, "sine", 0.15);
-      setTimeout(() => playSfx(800, "sine", 0.2), 100);
-      setIsAuthenticated(true);
-      sessionStorage.setItem("samvidhan_admin_session", "true");
-      setUserIdInput("");
-      setPasswordInput("");
+      if (userIdInput === currentSavedId1 && passwordInput === currentSavedPass1) {
+        addSecurityLog("Lock 1 Sub-Admin", "प्रथम सुरक्षा ताला (Lock 1 🔑) अनलॉक", "success", `यूज़र '${userIdInput}' ने प्रथम सुरक्षा प्रमाणीकरण स्तर को सफलतापूर्वक अनलॉक किया।`);
+        playSfx(440, "sine", 0.15);
+        setTimeout(() => playSfx(554, "sine", 0.15), 100);
+        setLockStep(2);
+        setUserIdInput("");
+        setPasswordInput("");
+        setMascotData({
+          mood: "excited",
+          text: "अद्भुत! पहला प्रशासनिक ताला (First Lock 🔑) सफलतापूर्वक खुल गया है। अब कृपया सुरक्षा के दूसरे ताले (Second Lock 🔒) के अलग क्रेडेंशियल्स दर्ज करें।"
+        });
+      } else {
+        addSecurityLog("Security Monitor", "प्रथम ताले (Lock 1) पर विफल लॉगिन प्रयास", "warning", `अवैध लॉगिन सबमिशन। यूज़र आईडी प्रयुक्त: '${userIdInput}' (गलत पासवर्ड दर्ज किया गया)`);
+        playSfx(150, "sawtooth", 0.3);
+        setLoginError("प्रथम ताले (Lock 1) का अमान्य उपयोगकर्ता नाम (User ID) या सुरक्षा पासवर्ड!");
+      }
     } else {
-      playSfx(150, "sawtooth", 0.3);
-      setLoginError("अमान्य उपयोगकर्ता नाम (User ID) या सुरक्षा पिन / पासवर्ड!");
+      // Step 2: Validate Lock 2 Credentials
+      const currentSavedId2 = localStorage.getItem("samvidhan_admin_uid_2") || "admin2";
+      const currentSavedPass2 = localStorage.getItem("samvidhan_admin_pwd_2") || "admin2";
+
+      if (userIdInput === currentSavedId2 && passwordInput === currentSavedPass2) {
+        addSecurityLog("Lock 2 Sub-Admin", "पूर्ण प्रशासनिक पैनल खुला (Double Lock 🔒 Portal Opened)", "success", `यूज़र '${userIdInput}' द्वारा द्वितीय सुरक्षा स्तर अनलॉक। पूर्ण सत्र क्रेडेंशियल्स सत्यापित और एडमिन पैनल अधिग्रहीत।`);
+        playSfx(600, "sine", 0.15);
+        setTimeout(() => playSfx(800, "sine", 0.2), 100);
+        setIsAuthenticated(true);
+        sessionStorage.setItem("samvidhan_admin_session", "true");
+        setUserIdInput("");
+        setPasswordInput("");
+        setLockStep(1); // Reset step back for next login sessions
+      } else {
+        addSecurityLog("Security Monitor", "द्वितीय ताले (Lock 2) पर विफल लॉगिन प्रयास", "warning", `अवैध लॉगिन सबमिशन। यूज़र आईडी प्रयुक्त: '${userIdInput}' (लॉक 2 प्रमाणीकरण विफल)`);
+        playSfx(150, "sawtooth", 0.3);
+        setLoginError("द्वितीय ताले (Lock 2) का अमान्य उपयोगकर्ता नाम (User ID) या सुरक्षा पासवर्ड!");
+      }
     }
   };
 
   const handleSignOut = () => {
     playSfx(400, "sine", 0.1);
+    addSecurityLog("प्रणाली सुरक्षा", "सुरक्षित लॉगआउट क्रियान्वयन (Admin Session Ended)", "success", "प्रशासक द्वारा कोर एडमिन पैनल सत्र को हस्तचालित रूप से बंद किया गया।");
     setIsAuthenticated(false);
+    setLockStep(1);
     sessionStorage.removeItem("samvidhan_admin_session");
     signOut(auth).catch(err => console.error("Firebase sign out failed:", err));
   };
@@ -830,7 +949,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
     }, 2500);
   };
 
-  // Change Admin Login Credentials
+  // Change Admin Login Credentials for Lock 1 or Lock 2
   const handleUpdateCredentials = (e: React.FormEvent) => {
     e.preventDefault();
     setCredError("");
@@ -838,27 +957,42 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
 
     const newId = newAdminId.trim();
     if (!newId) return setCredError("User ID खाली नहीं हो सकता!");
-    if (newAdminPassword.length < 4) return setCredError("नया क्रेडेंशियल/पासवर्ड कम से कम ४ अक्षरों का होना चाहिए!");
+    if (newAdminPassword.length < 4) return setCredError("नया क्रेडेंशियल/पासवर्ड कम से कम 4 अक्षरों का होना चाहिए!");
     if (newAdminPassword !== confirmNewPassword) return setCredError("पासवर्ड की पुष्टि मेल नहीं खाती!");
 
     const mobileClean = adminMobile.trim();
     if (mobileClean.length < 10) {
-      return setCredError("कृपया एक वैध १०-अंकों का मोबाइल नंबर दर्ज करें!");
+      return setCredError("कृपया एक वैध 10-अंकों का मोबाइल नंबर दर्ज करें!");
     }
 
-    localStorage.setItem("samvidhan_admin_uid", newId);
-    localStorage.setItem("samvidhan_admin_pwd", newAdminPassword);
+    const isLock1 = updateLockChoice === "lock1";
+    if (isLock1) {
+      localStorage.setItem("samvidhan_admin_uid_1", newId);
+      localStorage.setItem("samvidhan_admin_pwd_1", newAdminPassword);
+      setAdminId1(newId);
+      setAdminPassword1(newAdminPassword);
+    } else {
+      localStorage.setItem("samvidhan_admin_uid_2", newId);
+      localStorage.setItem("samvidhan_admin_pwd_2", newAdminPassword);
+      setAdminId2(newId);
+      setAdminPassword2(newAdminPassword);
+    }
     localStorage.setItem("samvidhan_admin_mobile", mobileClean);
-    
-    setAdminId(newId);
-    setAdminPassword(newAdminPassword);
+
+    addSecurityLog(
+      isLock1 ? "Lock 1 Sub-Admin" : "Lock 2 Sub-Admin",
+      isLock1 ? "प्रथम ताला क्रेडेंशियल परिवर्तित (Lock 1 Changed)" : "द्वितीय ताला क्रेडेंशियल परिवर्तित (Lock 2 Changed)",
+      "error",
+      `सुरक्षा क्रेडेंशियल अपडेट किए गए। नया यूजर आईडी: '${newId}'। सूचना एसएमएस ${mobileClean} को भेजा गया।`
+    );
 
     const maskedPwd = newAdminPassword.substring(0, 2) + "*".repeat(Math.max(1, newAdminPassword.length - 2));
     const nowStr = new Date().toLocaleTimeString("hi-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const fullDate = new Date().toLocaleDateString("hi-IN", { day: "numeric", month: "short", year: "numeric" });
     
+    const lockLabel = isLock1 ? "प्रथम ताला (Lock 1 🔑)" : "द्वितीय ताला (Lock 2 🔒)";
     const smsId = "SMS-" + Math.floor(Math.random() * 900000 + 100000);
-    const smsBody = `🔔 सुरक्षा अलर्ट (Samvidhan Mitra): आपके एडमिन क्रेडेंशियल्स सफलतापूर्वक बदले गए हैं। User ID: ${newId}, पासवर्ड: ${maskedPwd}। समय: ${nowStr}, दिनांक: ${fullDate}। यदि यह आपने नहीं किया है तो तुरंत सहायता पर संपर्क करें!`;
+    const smsBody = `🔔 सुरक्षा अपडेट: ${lockLabel} के एडमिन क्रेडेंशियल्स बदले गए हैं। User ID: ${newId}, पासवर्ड: ${maskedPwd}। समय: ${nowStr}।`;
     
     const newLogItem = {
       id: smsId,
@@ -882,6 +1016,15 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
       provider: "JIO-SecureSMS Gateway (Primary)"
     });
 
+    setNewAdminId("");
+    setNewAdminPassword("");
+    setConfirmNewPassword("");
+    setCredMessage(`सफलतापूर्वक ${lockLabel} के क्रेडेंशियल्स अद्यतन कर दिए गए हैं! सुरक्षा संदेश मोबाइल (${mobileClean}) पर भेज दिया गया है। 👍`);
+    setMascotData({
+      mood: "proud",
+      text: `सुरक्षा पुष्टि! मैंने आपके पंजीकृत मोबाइल नंबर ${mobileClean} पर ${lockLabel} के लिए सुरक्षा अद्यतन का SMS संदेश सफलतापूर्वक भेज दिया है। 🛡️📱`
+    });
+
     playSfx(880, "sine", 0.25);
     setTimeout(() => {
       // Simulate phone text chime sound
@@ -889,16 +1032,6 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
       setTimeout(() => playSfx(659.25, "sine", 0.08), 80); 
       setTimeout(() => playSfx(880, "sine", 0.12), 160); 
     }, 400);
-
-    setCredMessage(`सफलता! क्रेडेंशियल बदल दिए गए हैं और पंजीकृत मोबाइल (${mobileClean}) पर पुष्टि सुरक्षा संदेश भेज दिया गया है। 👍`);
-    setMascotData({
-      mood: "proud",
-      text: `सुरक्षा पुष्टि! मैंने आपके पंजीकृत मोबाइल नंबर ${mobileClean} पर सुरक्षा अद्यतन का SMS संदेश सफलतापूर्वक भेज दिया है। 🛡️📱`
-    });
-
-    setNewAdminId("");
-    setNewAdminPassword("");
-    setConfirmNewPassword("");
   };
 
   // Quick action: override or adjust stats clicks
@@ -960,21 +1093,33 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
           >
             <div className="text-center space-y-2">
               <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto border-2 border-rose-100">
-                <Lock className="w-6 h-6 text-rose-500" />
+                {lockStep === 1 ? (
+                  <Lock className="w-6 h-6 text-rose-500 animate-pulse" />
+                ) : (
+                  <Key className="w-6 h-6 text-yellow-600 animate-bounce" />
+                )}
               </div>
-              <h3 className="text-lg font-black text-slate-800">सुरक्षित पोर्टल लॉगिन (Admin Login)</h3>
-              <p className="text-xs text-slate-500 font-bold">
-                डिफ़ॉल्ट लॉगिन क्रेडेंशियल: 
-                <span className="text-rose-600 font-extrabold font-mono bg-rose-50 px-2 py-0.5 rounded border border-rose-150 ml-1">
-                  admin / admin
+              <h3 className="text-base font-black text-slate-800">सुरक्षित प्रशासनिक नियंत्रण लॉगिन (Dual Lock Authenticator)</h3>
+              
+              {/* Double Lock badging */}
+              <div className="flex flex-wrap justify-center items-center gap-1.5 pt-1">
+                <span className={`px-2.5 py-1 rounded-full text-[9px] font-black border transition-all duration-300 ${lockStep === 1 ? "bg-rose-500 text-white border-rose-600" : "bg-emerald-100 text-emerald-700 border-emerald-200"}`}>
+                  🔑 Lock 1 (ताला १): {lockStep === 1 ? "सक्रिय (Active)" : "अनलॉक (Opened)"}
                 </span>
+                <span className={`px-2.5 py-1 rounded-full text-[9px] font-black border transition-all duration-300 ${lockStep === 2 ? "bg-amber-500 text-white border-amber-600" : "bg-slate-100 text-slate-400 border-slate-200"}`}>
+                  🔒 Lock 2 (ताला २): {lockStep === 2 ? "सक्रिय (Enter PIN)" : "सुरक्षित बंद"}
+                </span>
+              </div>
+
+              <p className="text-[10px] text-slate-500 font-extrabold max-w-sm mx-auto leading-relaxed pt-1">
+                सुरक्षा मानदंड: यह संभाग डबल-लॉक सुरक्षा प्रणाली के अंतर्गत रक्षित है। दोनों क्रेडेंशियल्स दर्ज के बाद ही एक्सेस प्राप्त होगा।
               </p>
             </div>
 
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div className="space-y-1 text-left">
                 <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest pl-1">
-                  यूज़र ID (User ID):
+                  {lockStep === 1 ? "प्रथम कुंजी (Lock 1): यूज़र ID" : "द्वितीय कुंजी (Lock 2): यूज़र ID"}
                 </label>
                 <div className="relative flex items-center bg-slate-50 border-2 border-slate-200 focus-within:border-rose-500 rounded-xl px-3 py-2.5">
                   <User className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
@@ -983,7 +1128,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                     required
                     value={userIdInput}
                     onChange={(e) => setUserIdInput(e.target.value)}
-                    placeholder="जैसे: admin"
+                    placeholder={lockStep === 1 ? "संकेत: 'admin1' दर्ज करें" : "संकेत: 'admin2' दर्ज करें"}
                     className="w-full bg-transparent text-slate-800 font-bold text-xs focus:outline-none"
                   />
                 </div>
@@ -991,7 +1136,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
 
               <div className="space-y-1 text-left">
                 <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest pl-1">
-                  सुरक्षा पिन / पासवर्ड:
+                  {lockStep === 1 ? "प्रथम कुंजी (Lock 1): सुरक्षा पासवर्ड" : "द्वितीय कुंजी (Lock 2): सुरक्षा पासवर्ड"}
                 </label>
                 <div className="relative flex items-center bg-slate-50 border-2 border-slate-200 focus-within:border-rose-500 rounded-xl px-3 py-2.5">
                   <Key className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
@@ -1000,7 +1145,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                     required
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="जैसे: admin"
+                    placeholder={lockStep === 1 ? "Lock 1 पासवर्ड दर्ज करें" : "Lock 2 पासवर्ड दर्ज करें"}
                     className="w-full bg-transparent text-slate-800 font-bold text-xs focus:outline-none font-mono"
                   />
                 </div>
@@ -1017,8 +1162,17 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                 type="submit"
                 className="w-full bg-gradient-to-r from-rose-500 to-pink-650 hover:from-rose-600 hover:to-pink-700 text-white font-black text-xs py-3 rounded-xl border-b-4 border-rose-800 active:border-b-0 cursor-pointer transition flex items-center justify-center gap-2"
               >
-                <Unlock className="w-4 h-4" />
-                <span>सुरक्षित प्रवेश करें (Password Login)</span>
+                {lockStep === 1 ? (
+                  <>
+                    <Unlock className="w-4 h-4 animate-pulse" />
+                    <span>ताला १ अनलॉक करें (Unlatch Lock 1)</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 text-amber-100" />
+                    <span>ताला २ अनलॉक • पोर्टल खोलें (Authorize Lock 2)</span>
+                  </>
+                )}
               </button>
             </form>
           </motion.div>
@@ -1077,6 +1231,17 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                 <span className="text-sm">🏫</span>
                 <span>स्कूल पंजीयन रिकॉर्ड (School Registrations)</span>
               </button>
+              <button
+                onClick={() => { playSfx(600); setAdminSubTab("securitylogs"); }}
+                className={`px-5 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-2 cursor-pointer ${
+                  adminSubTab === "securitylogs" 
+                    ? "bg-rose-500 text-white shadow-md scale-102" 
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>सुरक्षा लॉग्स (Security Logs)</span>
+              </button>
             </div>
 
             {adminSubTab === "articles" && (
@@ -1093,7 +1258,20 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                       <h3 className="font-black text-sm text-slate-800">मास्टर लॉगिन बदलें (Change Admin Login)</h3>
                     </div>
 
-                    <form onSubmit={handleUpdateCredentials} className="space-y-3">
+                    <form onSubmit={handleUpdateCredentials} className="space-y-4">
+                      
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 block">लक्ष्य ताला (Select Lock to Modify):</label>
+                        <select
+                          value={updateLockChoice}
+                          onChange={(e) => setUpdateLockChoice(e.target.value as "lock1" | "lock2")}
+                          className="w-full bg-slate-50 border-2 border-slate-150 hover:border-slate-250 rounded-xl px-3 py-2 text-slate-800 font-bold text-xs focus:outline-none focus:border-rose-400 cursor-pointer"
+                        >
+                          <option value="lock1">🔑 प्रथम ताला (Change Lock 1)</option>
+                          <option value="lock2">🔒 द्वितीय ताला (Change Lock 2)</option>
+                        </select>
+                      </div>
+
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 block">नया यूज़र ID:</label>
                         <input
@@ -1101,7 +1279,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                           required
                           value={newAdminId}
                           onChange={(e) => setNewAdminId(e.target.value)}
-                          placeholder="जैसे: head_admin1"
+                          placeholder={updateLockChoice === "lock1" ? "जैसे: root_admin1" : "जैसे: master_admin2"}
                           className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-bold text-xs focus:outline-none focus:border-rose-400"
                         />
                       </div>
@@ -1433,7 +1611,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                           required
                           value={signVideoTitleInput}
                           onChange={(e) => setSignVideoTitleInput(e.target.value)}
-                          placeholder="उदाहरण: संविधान की प्रस्तावना - भाग ३"
+                          placeholder="उदाहरण: संविधान की प्रस्तावना - भाग 3"
                           className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-rose-400 rounded-2xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-bold"
                         />
                       </div>
@@ -1983,15 +2161,17 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                     {/* DOWNLOAD CSV BUTTON */}
                     <button
                       onClick={() => {
-                        // Let's build CSV content
-                        // Columns: School Name, District Name, Block Name, Registered Date, Voter Count
-                        const headers = ["S.No.", "School Name (विद्यालय का नाम)", "District (ज़िला)", "Block (ब्लॉक)", "Voter Count (वोटरों की संख्या)", "Registration Time (पंजीकरण समय)"];
+                        // Assemble CSV matching exact user metrics (Registration Code, district, block, school, voters, candidates, winner)
+                        const headers = ["S.No.", "Registration Code (पंजीकरण कोड)", "District (ज़िला)", "Block (ब्लॉक)", "School Name (विद्यालय का नाम)", "Voters Count (कुल मतदाता)", "Candidates Count (कुल प्रत्याशी)", "Winner Name (विजेता प्रत्याशी)", "Created Date (समय)"];
                         const rows = registeredSchools.map((school, index) => [
                           index + 1,
-                          `"${school.schoolName.replace(/"/g, '""')}"`,
+                          `"${(school.schoolRegCode || "").replace(/"/g, '""')}"`,
                           `"${(school.districtName || 'जयपुर').replace(/"/g, '""')}"`,
                           `"${(school.blockName || 'सांगानेर').replace(/"/g, '""')}"`,
+                          `"${school.schoolName.replace(/"/g, '""')}"`,
                           school.votersCount || 0,
+                          school.candidatesCount || 0,
+                          `"${(school.winnerName || "अपरिभाषित").replace(/"/g, '""')}"`,
                           `"${new Date(school.timestamp).toLocaleString('hi-IN')}"`
                         ]);
                         
@@ -2105,11 +2285,25 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                             </td>
                             <td className="p-3 text-center">
                               <button
-                                onClick={() => {
+                                onClick={async () => {
                                   if (!confirm("क्या आप वाकई इस स्कूल का रिकॉर्ड हटाना चाहते हैं?")) return;
                                   const filtered = registeredSchools.filter((_, sIdx) => sIdx !== idx);
                                   setRegisteredSchools(filtered);
                                   localStorage.setItem("samvidhan_registered_schools", JSON.stringify(filtered));
+                                  
+                                  // Log security event
+                                  addSecurityLog("Lock 2 Sub-Admin", "स्कूल पंजीयन रिकॉर्ड हटाया (Registration Removed)", "warning", `स्कूल '${school.schoolName}' (पंजीकरण आईडी: ${school.schoolRegCode || "N/A"}) का रिकॉर्ड हटाया गया।`);
+                                  
+                                  // Live sync cloud Firestore deletions safely
+                                  if (school.schoolRegCode) {
+                                    try {
+                                      const docId = school.schoolRegCode.replace(/[^a-zA-Z0-9_\-]/g, "");
+                                      await deleteDoc(doc(db, "schools", docId));
+                                    } catch (err) {
+                                      console.warn("Firestore synclog delete omitted:", err);
+                                    }
+                                  }
+
                                   playSfx(440, "sine", 0.15);
                                   setMascotData({
                                     mood: "thinking",
@@ -2133,8 +2327,22 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                 {registeredSchools.length > 0 && (
                   <div className="flex justify-end">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (!confirm("चेतावनी: क्या आप सभी पंजीकृत स्कूलों की सूची पूरी तरह मिटाना चाहते हैं?")) return;
+                        
+                        // Log security event
+                        addSecurityLog("Lock 2 Sub-Admin", "डेटाबेस रीसेट (Database Wiped)", "error", "पंजीकृत सभी स्कूलों के रिकॉर्ड्स को मुख्य एडमिन पैनल से पूरी तरह मिटाया गया।");
+
+                        // Live sync Cloud Firestore database resets safely
+                        registeredSchools.forEach(async (school) => {
+                          if (school.schoolRegCode) {
+                            try {
+                              const docId = school.schoolRegCode.replace(/[^a-zA-Z0-9_\-]/g, "");
+                              await deleteDoc(doc(db, "schools", docId));
+                            } catch (e) {}
+                          }
+                        });
+
                         setRegisteredSchools([]);
                         localStorage.removeItem("samvidhan_registered_schools");
                         playSfx(300, "sawtooth", 0.3);
@@ -2150,6 +2358,154 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {adminSubTab === "securitylogs" && (
+              <div className="bg-white border-2 border-slate-150 rounded-3xl p-6 shadow-xs space-y-6 text-left">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-150 pb-5">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl text-rose-600">
+                        <ShieldCheck className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <h3 className="font-black text-base text-slate-900">
+                        केंद्रीकृत सुरक्षा लॉग्स और पारदर्शी ऑडिट (Centralized Security Log Registry)
+                      </h3>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-bold">
+                      यह अनुभाग डबल-लॉक एडमिन पैनल खोलने, क्रेडेंशियल संशोधित करने और संवेदनशील संपादन कार्यों की समय-सीमा ट्रैकिंग करता है।
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        if (!confirm("क्या आप वाकई सभी सुरक्षा लॉग्स इतिहास को साफ़ करना चाहते हैं?")) return;
+                        const clearLog = {
+                          id: "SEC-" + Math.floor(Math.random() * 900000 + 100000),
+                          timestamp: new Date().toLocaleString("hi-IN"),
+                          actor: "Lock 2 Sub-Admin",
+                          action: "सुरक्षा इतिहास रीसेट (Logs Reset)",
+                          status: "error" as const,
+                          details: "प्रशासक द्वारा पूर्व में सहेजे गए सभी सुरक्षा और ऑडिट लॉग्स इतिहास को साफ़ किया गया।"
+                        };
+                        setSecurityLogs([clearLog]);
+                        localStorage.setItem("samvidhan_admin_security_logs", JSON.stringify([clearLog]));
+                        playSfx(300, "sawtooth", 0.2);
+                        setMascotData({
+                          mood: "thinking",
+                          text: "ऑडिट सुरक्षा इतिहास साफ़ कर दिया गया है! 🗑️"
+                        });
+                      }}
+                      className="text-xs font-black bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-4 py-2 rounded-xl transition cursor-pointer"
+                    >
+                      इतिहास साफ़ करें (Flush Audit History)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Audit Grid Metric Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 space-y-1">
+                    <span className="text-[10px] text-slate-450 font-black uppercase tracking-wider block">निगरानी स्थिति (Monitoring Status)</span>
+                    <div className="flex items-center gap-1.5 font-sans">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                      <span className="font-black text-sm text-slate-800">🟢 लाइव सक्रिय (LIVE ACTIVE)</span>
+                    </div>
+                  </div>
+                  <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 space-y-1">
+                    <span className="text-[10px] text-slate-450 font-black uppercase tracking-wider block font-sans font-black">कुल सुरक्षा विसंगतियां (Total Audit Points)</span>
+                    <span className="font-black text-xl text-slate-800 font-mono">{securityLogs.length}</span>
+                  </div>
+                  <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 space-y-1">
+                    <span className="text-[10px] text-slate-450 font-black uppercase tracking-wider block">डबल-लॉक स्थिति (Double Lock Status)</span>
+                    <span className="font-black text-sm text-rose-600 block">🔓 अनलॉक और अधिकृत (AUTHORIZED)</span>
+                  </div>
+                  <div className="border border-slate-150 rounded-2xl p-4 bg-slate-50/50 space-y-1">
+                    <span className="text-[10px] text-slate-450 font-black uppercase tracking-wider block">अंतिम ऑडिट बिंदु (Last Log Active)</span>
+                    <span className="font-black text-[11px] text-slate-700 font-mono truncate block">
+                      {securityLogs[0] ? securityLogs[0].timestamp : "N/A"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Security Logs Table Container */}
+                <div className="overflow-x-auto border-2 border-slate-200 rounded-2xl bg-slate-50/20">
+                  <table className="w-full text-left border-collapse font-sans text-xs text-slate-800">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 text-[10.5px] font-black uppercase tracking-wide">
+                        <th className="p-3.5 text-center w-24">सुरक्षा आईडी</th>
+                        <th className="p-3.5 w-44">📅 दिनांक और समय</th>
+                        <th className="p-3.5 w-40">👤 उत्तरदायी कर्ता (Actor)</th>
+                        <th className="p-3.5 w-60">📑 गतिविधि / कार्रवाई (Action)</th>
+                        <th className="p-3.5 text-center w-28">स्थिति (Level)</th>
+                        <th className="p-3.5">🔍 विस्तृत विवरण (Details Payload)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {securityLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-slate-450 font-bold italic">
+                            वर्तमान में सुरक्षा लॉग्स इतिहास पूरी तरह सुरक्षित और खाली है।
+                          </td>
+                        </tr>
+                      ) : (
+                        securityLogs.map((log) => {
+                          let badgeStyle = "bg-emerald-50 border-emerald-200 text-emerald-800";
+                          let dotStyle = "bg-emerald-500";
+                          let label = "सफल (Success)";
+                          
+                          if (log.status === "warning") {
+                            badgeStyle = "bg-amber-50 border-amber-250 text-amber-800";
+                            dotStyle = "bg-amber-500";
+                            label = "चेतावनी (Warning)";
+                          } else if (log.status === "error") {
+                            badgeStyle = "bg-rose-50 border-rose-150 text-rose-800";
+                            dotStyle = "bg-rose-600";
+                            label = "महत्वपूर्ण (Critical)";
+                          }
+
+                          return (
+                            <tr key={log.id} className="border-b border-slate-150 hover:bg-slate-50/70 font-semibold text-slate-800 transition">
+                              <td className="p-3 text-center">
+                                <span className="bg-slate-100 border border-slate-250 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-600 font-bold">
+                                  {log.id}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-500 font-mono text-[11px]">
+                                {log.timestamp}
+                              </td>
+                              <td className="p-3">
+                                <span className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold ${
+                                  log.actor.includes("Lock 1") 
+                                    ? "bg-orange-50 border border-orange-200 text-orange-800" 
+                                    : log.actor.includes("Lock 2") 
+                                    ? "bg-blue-50 border border-blue-200 text-blue-800"
+                                    : "bg-purple-50 border border-purple-200 text-purple-850"
+                                }`}>
+                                  {log.actor}
+                                </span>
+                              </td>
+                              <td className="p-3 font-extrabold text-slate-900 font-sans">
+                                {log.action}
+                              </td>
+                              <td className="p-3 text-center">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 border rounded-full text-[10.5px] font-black ${badgeStyle}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${dotStyle}`}></span>
+                                  {label}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-600 text-[11px] font-bold leading-relaxed font-sans">
+                                {log.details}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 

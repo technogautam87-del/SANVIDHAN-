@@ -577,7 +577,7 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
             name: "इतिहास अन्वेषक पदक",
             englishName: "History Investigator Badge",
             emoji: "⏳",
-            desc: "इतिहास की सभी ३ पहेलियाँ सुलझाईं तथा प्रारूप समिति का ज्ञान अर्जित किया।",
+            desc: "इतिहास की सभी 3 पहेलियाँ सुलझाईं तथा प्रारूप समिति का ज्ञान अर्जित किया।",
             unlocked: historyPct === 100,
             color: "from-amber-400 via-orange-500 to-amber-600",
             accent: "bg-orange-500"
@@ -587,7 +587,7 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
             name: "अधिकार रक्षक पदक",
             englishName: "Guardian of Rights Medal",
             emoji: "🛡️",
-            desc: "सभी ६ मौलिक अधिकार सिमुलेशन पूर्ण किए व समाज में समानता के अधिकार को समझा।",
+            desc: "सभी 6 मौलिक अधिकार सिमुलेशन पूर्ण किए व समाज में समानता के अधिकार को समझा।",
             unlocked: rightsPct === 100,
             color: "from-pink-400 via-rose-500 to-pink-600",
             accent: "bg-pink-500"
@@ -597,7 +597,7 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
             name: "कर्तव्यनिष्ठ नागरिक पदक",
             englishName: "Dutybound Citizen Medal",
             emoji: "🌱",
-            desc: "स्वच्छता व राष्ट्रीय सम्मान जैसे सभी ६ कर्तव्य परिस्थितियों का सही निर्णय लिया।",
+            desc: "स्वच्छता व राष्ट्रीय सम्मान जैसे सभी 6 कर्तव्य परिस्थितियों का सही निर्णय लिया।",
             unlocked: dutiesPct === 100,
             color: "from-yellow-400 via-emerald-500 to-green-600",
             accent: "bg-green-500"
@@ -617,7 +617,7 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
             name: "संविधान सुपरस्टार पदक",
             englishName: "Constitution Quiz Superstar",
             emoji: "👑",
-            desc: "क्विज़ में ८ या उससे अधिक सही उत्तर देकर उच्चतम ज्ञान स्तर प्राप्त किया।",
+            desc: "क्विज़ में 8 या उससे अधिक सही उत्तर देकर उच्चतम ज्ञान स्तर प्राप्त किया।",
             unlocked: quizHighScore >= 8,
             color: "from-yellow-300 via-amber-400 to-orange-500",
             accent: "bg-amber-500"
@@ -627,7 +627,7 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
             name: "समरसता दूत सम्मान पदक",
             englishName: "Harmony Ambassador Badge",
             emoji: "🤝",
-            desc: "सांकेतिक भाषा के सभी ६ मूक-बधिर साक्षरता पाठों को कुशलतापूर्वक पूर्ण किया।",
+            desc: "सांकेतिक भाषा के सभी 6 मूक-बधिर साक्षरता पाठों को कुशलतापूर्वक पूर्ण किया।",
             unlocked: signPct === 100,
             color: "from-teal-400 via-cyan-500 to-teal-600",
             accent: "bg-teal-500"
@@ -651,7 +651,7 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
                   <span>डिजिटल मेडल व बैज गैलरी (Digital Badge Medal Gallery)</span>
                 </h3>
                 <p className="text-xs text-slate-300 font-bold mt-1.5 leading-relaxed">
-                  उत्कृष्ट प्रदर्शन करके सभी ६ विषयों के सम्मान पदक अनलॉक करें! अनलॉक होने पर शानदार उत्सव सिमुलेशन दिखाई देगा।
+                  उत्कृष्ट प्रदर्शन करके सभी 6 विषयों के सम्मान पदक अनलॉक करें! अनलॉक होने पर शानदार उत्सव सिमुलेशन दिखाई देगा।
                 </p>
               </div>
               

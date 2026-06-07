@@ -70,12 +70,15 @@ service cloud.firestore {
 
     // School Record Validation Blueprint
     function isValidSchool(data) {
-      return data.keys().hasAll(['schoolName', 'districtName', 'blockName', 'votersCount', 'timestamp']) &&
-             data.keys().size() == 5 &&
+      return data.keys().hasAll(['schoolRegCode', 'schoolName', 'districtName', 'blockName', 'votersCount', 'candidatesCount', 'winnerName', 'timestamp']) &&
+             data.keys().size() == 8 &&
+             data.schoolRegCode is string && data.schoolRegCode.size() <= 64 &&
              data.schoolName is string && data.schoolName.size() >= 2 && data.schoolName.size() <= 150 &&
              data.districtName is string && data.districtName.size() >= 2 && data.districtName.size() <= 100 &&
              data.blockName is string && data.blockName.size() >= 2 && data.blockName.size() <= 100 &&
              (data.votersCount is int || data.votersCount is float) && data.votersCount >= 0 && data.votersCount <= 100000 &&
+             (data.candidatesCount is int || data.candidatesCount is float) && data.candidatesCount >= 0 && data.candidatesCount <= 1000 &&
+             data.winnerName is string && data.winnerName.size() <= 150 &&
              data.timestamp is string && data.timestamp.size() <= 64;
     }
 
@@ -96,10 +99,10 @@ service cloud.firestore {
                       );
     }
 
-    // School Participation Registry (Read: Public, Create/Write: Strict schema verification, Deletion: Admin strictly)
+    // School Participation Registry (Read: Public, Create: Public schema validation, Update/Delete: Admin strictly)
     match /schools/{schoolId} {
       allow read: if true;
-      allow create: if isSignedIn() && isValidId(schoolId) && isValidSchool(incoming());
+      allow create: if isValidId(schoolId) && isValidSchool(incoming());
       allow update, delete: if isAdmin() && isValidId(schoolId);
     }
 

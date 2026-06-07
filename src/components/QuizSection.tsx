@@ -923,21 +923,21 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
       hint: "हमारे देश का सर्वोच्च नियम-संग्रह जिसके द्वारा भारत का शासन चलता है।",
       scrambled: ["धा", "न", "सं", "वि"],
       correctSeq: ["सं", "वि", "धा", "न"],
-      fact: "संविधान सभा ने २ वर्ष, ११ माह और १८ दिनों में भारतीय संविधान तैयार किया था!"
+      fact: "संविधान सभा ने 2 वर्ष, 11 माह और 18 दिनों में भारतीय संविधान तैयार किया था!"
     },
     {
       word: "समानता",
       hint: "बिना किसी भेदभाव के हर नागरिक को बराबर सम्मान और समान अधिकार मिलना।",
       scrambled: ["ता", "न", "स", "मा"],
       correctSeq: ["स", "मा", "न", "ता"],
-      fact: "समानता का अधिकार संविधान के अनुच्छेद १४ से १८ में सुरक्षित है।"
+      fact: "समानता का अधिकार संविधान के अनुच्छेद 14 से 18 में सुरक्षित है।"
     },
     {
       word: "स्वतंत्रता",
       hint: "हर भारतीय को मर्यादित स्वतंत्रता, विचार व्यक्त करने और सुखी जीवन जीने का अधिकार।",
       scrambled: ["त्र", "ता", "स्व", "तं"],
       correctSeq: ["स्व", "तं", "त्र", "ता"],
-      fact: "अनुच्छेद १९ हमें विचार, भाषण देने और शांतिपूर्ण सभा करने की स्वतंत्रता देता है।"
+      fact: "अनुच्छेद 19 हमें विचार, भाषण देने और शांतिपूर्ण सभा करने की स्वतंत्रता देता है।"
     }
   ];
 
@@ -970,7 +970,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
       }
       setMascotData({
         mood: "excited",
-        text: `अद्भुत बच्चों! शब्द बना '${currentScramble.word}'। ${currentScramble.hint} आपको २० पॉइंट्स (XP) मिल चुके हैं! 🎉`
+        text: `अद्भुत बच्चों! शब्द बना '${currentScramble.word}'। ${currentScramble.hint} आपको 20 पॉइंट्स (XP) मिल चुके हैं! 🎉`
       });
       
       // Play ascending success chime
@@ -1026,14 +1026,14 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
   // Game 2: Shield (अधिकार ढाल) state
   const shieldCases = [
     {
-      narrative: "१० साल के सोनू को एक चाय की दुकान पर सुबह से रात तक बर्तन साफ़ करने के भारी काम पर रखा गया है और मालिक उसे डांटता भी है।",
+      narrative: "10 साल के सोनू को एक चाय की दुकान पर सुबह से रात तक बर्तन साफ़ करने के भारी काम पर रखा गया है और मालिक उसे डांटता भी है।",
       question: "सोनू की सुरक्षा के लिए कौन सा 'अधिकार ढाल' इस्तेमाल किया जाना चाहिए?",
       options: [
         { text: "A) समानता का अधिकार (Right to Equality)", isCorrect: false },
         { text: "B) शोषण के विरुद्ध अधिकार और शिक्षा का अधिकार (Exploitation & RTE)", isCorrect: true },
         { text: "C) अपनी पसंद की भाषा बोलने का अधिकार", isCorrect: false }
       ],
-      explanation: "बिल्कुल सही! अनुच्छेद २४ १४ वर्ष से कम आयु के बच्चों से बाल-श्रम कराना सख़्त वर्जित करता है और अनुच्छेद २१A निःशुल्क शिक्षा सुनिश्चित करता है।"
+      explanation: "बिल्कुल सही! अनुच्छेद 24 14 वर्ष से कम आयु के बच्चों से बाल-श्रम कराना सख़्त वर्जित करता है और अनुच्छेद 21A निःशुल्क शिक्षा सुनिश्चित करता है।"
     },
     {
       narrative: "छात्रा मीरा को गाँव की पाठशाला की बाल-संसद में बोलने से रोक दिया गया क्योंकि वह लड़की है।",
@@ -1043,7 +1043,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
         { text: "B) धार्मिक स्वतंत्रता का अधिकार", isCorrect: false },
         { text: "C) कोई अधिकार नहीं है", isCorrect: false }
       ],
-      explanation: "शानदार! भारत के संविधान का अनुच्छेद १५ धर्म, लिंग, जाति या जन्मस्थान के आधार पर किसी भी नागरिक के साथ भेदभाव को पूरी तरह प्रतिबंधित करता है।"
+      explanation: "शानदार! भारत के संविधान का अनुच्छेद 15 धर्म, लिंग, जाति या जन्मस्थान के आधार पर किसी भी नागरिक के साथ भेदभाव को पूरी तरह प्रतिबंधित करता है।"
     },
     {
       narrative: "अमित अन्य राज्य से भीलवाड़ा आया है, वह वहाँ घूमना और व्यापार खोलना चाहता है परन्तु स्थानीय दबंग उसे भगा रहे हैं।",
@@ -1053,7 +1053,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
         { text: "B) शोषण के विरुद्ध अधिकार", isCorrect: false },
         { text: "C) स्वतंत्रता का अधिकार (रहने और आजीविका की आजादी)", isCorrect: true }
       ],
-      explanation: "अविश्वसनीय! भारत के प्रत्येक नागरिक को देश के किसी भी भाग में स्वतंत्र रूप से रहने, घूमने और व्यवसाय करने का अधिकार अनुच्छेद १९ सुनिश्चित करता है।"
+      explanation: "अविश्वसनीय! भारत के प्रत्येक नागरिक को देश के किसी भी भाग में स्वतंत्र रूप से रहने, घूमने और व्यवसाय करने का अधिकार अनुच्छेद 19 सुनिश्चित करता है।"
     }
   ];
 
@@ -1106,12 +1106,12 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
     {
       action: "सार्वजनिक स्थलों जैसे बस स्टेशन, रेलवे स्टेशन या स्कूल परिसर में गंदगी फैलाना और खिड़की तोडना।",
       isDuty: false,
-      hint: "सार्वजनिक संपत्ति की रक्षा करना और हिंसा से दूर रहना हर भारतीय बच्चे का मौलिक कर्तव्य ११A में है।"
+      hint: "सार्वजनिक संपत्ति की रक्षा करना और हिंसा से दूर रहना हर भारतीय बच्चे का मौलिक कर्तव्य 11A में है।"
     },
     {
       action: "जलाशयों, नदियों और जंगलों को साफ रखना, प्लास्टिक कचरा न डालना व वन्य जीवों की रक्षा करना।",
       isDuty: true,
-      hint: "प्राकृतिक पर्यावरण की रक्षा और जीवों के प्रति दयाभाव रखना हमारा पावन मौलिक कर्तव्य है (५१A - g)।"
+      hint: "प्राकृतिक पर्यावरण की रक्षा और जीवों के प्रति दयाभाव रखना हमारा पावन मौलिक कर्तव्य है (51A - g)।"
     },
     {
       action: "वैज्ञानिक सोच रखना, नए ज्ञान को उत्सुकता से सीखना और पूरे समाज की भलाई के लिए कार्य करना।",
@@ -1204,7 +1204,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
         <div className="bg-white border-2 border-orange-100 rounded-[30px] p-6 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between border-b pb-3 border-dashed">
             <div>
-              <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest block">खेल - १ (Word Hunt)</span>
+              <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest block">खेल - 1 (Word Hunt)</span>
               <h3 className="text-lg font-black text-slate-800">🧩 संविधान शब्द पहेली</h3>
             </div>
             <div className="bg-orange-100 text-orange-850 text-[10px] font-black px-3.5 py-1.5 rounded-xl border border-orange-300">
@@ -1286,7 +1286,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
 
               {scrambleResult === "correct" && (
                 <div className="flex items-center gap-2">
-                  <span className="text-emerald-600 font-black text-xs">✓ सही उत्तर! (+२० XP मिला)</span>
+                  <span className="text-emerald-600 font-black text-xs">✓ सही उत्तर! (+20 XP मिला)</span>
                   <button
                     onClick={handleNextScramble}
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white font-black text-xs rounded-xl cursor-pointer shadow flex items-center gap-1.5 border-b-4 border-indigo-850"
@@ -1316,7 +1316,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
         <div className="bg-white border-2 border-pink-100 rounded-[30px] p-6 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between border-b pb-3 border-dashed">
             <div>
-              <span className="text-[10px] font-black text-pink-600 uppercase tracking-widest block">खेल - २ (Rights Defender)</span>
+              <span className="text-[10px] font-black text-pink-600 uppercase tracking-widest block">खेल - 2 (Rights Defender)</span>
               <h3 className="text-lg font-black text-slate-800">🛡️ अधिकार ढाल रक्षक</h3>
             </div>
             <div className="bg-pink-100 text-pink-850 text-[10px] font-black px-4 py-1.5 rounded-xl border border-pink-300">
@@ -1412,7 +1412,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
         <div className="bg-white border-2 border-emerald-100 rounded-[30px] p-6 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between border-b pb-3 border-dashed">
             <div>
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">खेल - ३ (Citizen Duties Classifier)</span>
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">खेल - 3 (Citizen Duties Classifier)</span>
               <h3 className="text-lg font-black text-slate-800">👮 कर्तव्य सिपाही</h3>
             </div>
             <div className="bg-emerald-100 text-emerald-850 text-[10px] font-black px-4 py-1.5 rounded-xl border border-emerald-300">
@@ -1473,7 +1473,7 @@ function GamesHubSection({ incrementScore, setMascotData }: GamesHubSectionProps
                   {dutyResult === "correct" ? (
                     <p className="text-xs text-emerald-800 font-bold leading-relaxed">
                       🎉 <strong className="font-black text-emerald-950 block">शाबाश! बिल्कुल सही वर्गीकरण।</strong>
-                      {currentDuty.hint} (+१५ XP संचित)
+                      {currentDuty.hint} (+15 XP संचित)
                     </p>
                   ) : (
                     <p className="text-xs text-rose-700 font-bold leading-relaxed">
@@ -1796,13 +1796,13 @@ function SituationQuizSection({ incrementScore, setMascotData }: SituationQuizSe
 
       if (scoreRatio >= 0.8) {
         finalMood = "excited";
-        speech = `असाधारण प्रदर्शन! आपने १० में से ${correctCount} परिस्थितियों का बिल्कुल संविधान सम्मत समाधान किया। आप सचमुच एक आदर्श बाल न्यायविद हैं! 🏆🌟`;
+        speech = `असाधारण प्रदर्शन! आपने 10 में से ${correctCount} परिस्थितियों का बिल्कुल संविधान सम्मत समाधान किया। आप सचमुच एक आदर्श बाल न्यायविद हैं! 🏆🌟`;
       } else if (scoreRatio >= 0.5) {
         finalMood = "proud";
-        speech = `बहुत बढ़िया! आपने १० में से ${correctCount} उत्तर सही चुने। आपकी अधिकारों की बुनियादी समझ बेहद मजबूत है।`;
+        speech = `बहुत बढ़िया! आपने 10 में से ${correctCount} उत्तर सही चुने। आपकी अधिकारों की बुनियादी समझ बेहद मजबूत है।`;
       } else {
         finalMood = "happy";
-        speech = `प्रशंसनीय प्रयास! आपने १० में से ${correctCount} उत्तर सही किए। संविधान की धाराओं के बारे में और अधिक पढ़कर आप आगे शत-प्रतिशत अंक पा सकते हैं।`;
+        speech = `प्रशंसनीय प्रयास! आपने 10 में से ${correctCount} उत्तर सही किए। संविधान की धाराओं के बारे में और अधिक पढ़कर आप आगे शत-प्रतिशत अंक पा सकते हैं।`;
       }
 
       setMascotData({
@@ -1983,7 +1983,7 @@ function SituationQuizSection({ incrementScore, setMascotData }: SituationQuizSe
                 <ul className="text-xs text-slate-700 font-bold space-y-2 pb-2">
                   <li className="flex items-start gap-1.5">
                     <span className="text-amber-600 font-black">1.</span>
-                    <span>आपको १० यादृच्छिक रूप से बदली गई दैनिक परिस्थितियों का सामना करना होगा।</span>
+                    <span>आपको 10 यादृच्छिक रूप से बदली गई दैनिक परिस्थितियों का सामना करना होगा।</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <span className="text-amber-600 font-black">2.</span>
@@ -2043,7 +2043,7 @@ function SituationQuizSection({ incrementScore, setMascotData }: SituationQuizSe
                 अद्भुत निर्णय क्षमता! आप बने "संविधान प्रहरी"
               </h2>
               <p className="text-sm font-bold text-slate-500 max-w-lg mx-auto leading-relaxed">
-                आपने सभी १० कठिन सामाजिक परिस्थितियों को सुलझाकर देश के कानून और संविधान के प्रति उत्कृष्ट दायित्व एवं सम्मान प्रदर्शित किया है।
+                आपने सभी 10 कठिन सामाजिक परिस्थितियों को सुलझाकर देश के कानून और संविधान के प्रति उत्कृष्ट दायित्व एवं सम्मान प्रदर्शित किया है।
               </p>
             </div>
 
@@ -2052,7 +2052,7 @@ function SituationQuizSection({ incrementScore, setMascotData }: SituationQuizSe
               <div className="bg-amber-50 border-3 border-amber-200 p-6 rounded-[30px] shadow-inner flex flex-col justify-center items-center">
                 <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">सत्यता प्रतिशत (Correctness)</span>
                 <span className="text-4xl font-black text-amber-950 font-mono mt-1">{(correctCount / questions.length) * 100}%</span>
-                <span className="text-[11px] text-amber-700 font-bold mt-1">१० में से {correctCount} सही समाधान</span>
+                <span className="text-[11px] text-amber-700 font-bold mt-1">10 में से {correctCount} सही समाधान</span>
               </div>
 
               <div className="bg-emerald-50 border-3 border-emerald-200 p-6 rounded-[30px] shadow-inner flex flex-col justify-center items-center">

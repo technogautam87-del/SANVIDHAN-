@@ -82,7 +82,7 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
         englishName: "History Investigator Badge",
         emoji: "⏳",
         desc: "भारत के गौरवशाली इतिहास तथा प्रारूप समिति की सभी पहेलियों को शत-प्रतिशत सही सुलझाने वाले प्रतिभाशाली विद्यार्थी को यह सम्मान दिया जाता है।",
-        conditionText: "इतिहास की सभी ३ पहेलियाँ पूर्ण करें",
+        conditionText: "इतिहास की सभी 3 पहेलियाँ पूर्ण करें",
         current: solvedPuzzles,
         required: 3,
         unlocked: solvedPuzzles >= 3,
@@ -96,8 +96,8 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
         name: "अधिकार रक्षक पदक",
         englishName: "Guardian of Rights Medal",
         emoji: "🛡️",
-        desc: "समानता, स्वतंत्रता और शिक्षा के सभी ६ मौलिक अधिकार सिमुलेशन खेलों को समझदारी से खेलकर समाज में अधिकारों की रक्षा करने वाले रक्षक को यह मेडल मिलता है।",
-        conditionText: "सभी ६ मौलिक अधिकार परिस्थितियों का अध्ययन पूर्ण करें",
+        desc: "समानता, स्वतंत्रता और शिक्षा के सभी 6 मौलिक अधिकार सिमुलेशन खेलों को समझदारी से खेलकर समाज में अधिकारों की रक्षा करने वाले रक्षक को यह मेडल मिलता है।",
+        conditionText: "सभी 6 मौलिक अधिकार परिस्थितियों का अध्ययन पूर्ण करें",
         current: solvedRights,
         required: 6,
         unlocked: solvedRights >= 6,
@@ -111,8 +111,8 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
         name: "कर्तव्यनिष्ठ नागरिक पदक",
         englishName: "Dutybound Citizen Medal",
         emoji: "🌱",
-        desc: "राष्ट्रगान का सम्मान, तिरंगे की शान, और स्वच्छता जैसे ११ मौलिक कर्तव्यों व सुसंस्कृत आदतों की सही पहचान करने वाले देशभक्त बाल नागरिक को यह पदक मिलता है।",
-        conditionText: "कर्तव्य बोर्ड की सभी ६ परिस्थितियों का सही निर्णय लें",
+        desc: "राष्ट्रगान का सम्मान, तिरंगे की शान, और स्वच्छता जैसे 11 मौलिक कर्तव्यों व सुसंस्कृत आदतों की सही पहचान करने वाले देशभक्त बाल नागरिक को यह पदक मिलता है।",
+        conditionText: "कर्तव्य बोर्ड की सभी 6 परिस्थितियों का सही निर्णय लें",
         current: solvedDuties,
         required: 6,
         unlocked: solvedDuties >= 6,
@@ -142,7 +142,7 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
         englishName: "Constitution Quiz Superstar Badge",
         emoji: "👑",
         desc: "सीखो व खेलो क्विज़ में संविधान से संबंधित कठिन प्रश्नों का त्वरित व उच्चतम कौशल के साथ उत्तर देकर सर्वोच्च राष्ट्रीय बाल साक्षरता प्रतिष्ठा हासिल करने पर मिलता है।",
-        conditionText: "क्विज़ में न्यूनतम ८ प्रश्नों का सटीक उत्तर दें (८/१२)",
+        conditionText: "क्विज़ में न्यूनतम 8 प्रश्नों का सटीक उत्तर दें (8/12)",
         current: quizHighScore,
         required: 8,
         unlocked: quizHighScore >= 8,
@@ -156,8 +156,8 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
         name: "समरसता दूत सम्मान पदक",
         englishName: "Harmony Sign Language Ambassador",
         emoji: "🤝",
-        desc: "संविधान, भारत, स्वतंत्रता, और लोकतंत्र जैसे भारतीय सांकेतिक भाषा के सभी ६ महत्वपूर्ण मूक-बधिर साक्षरता पाठों को कुशलतापूर्वक पूर्ण करने वाले दूत को समर्पित।",
-        conditionText: "भारतीय सांकेतिक भाषा के सभी ६ पाठ पूर्ण करें",
+        desc: "संविधान, भारत, स्वतंत्रता, और लोकतंत्र जैसे भारतीय सांकेतिक भाषा के सभी 6 महत्वपूर्ण मूक-बधिर साक्षरता पाठों को कुशलतापूर्वक पूर्ण करने वाले दूत को समर्पित।",
+        conditionText: "भारतीय सांकेतिक भाषा के सभी 6 पाठ पूर्ण करें",
         current: solvedSign,
         required: 6,
         unlocked: solvedSign >= 6,
@@ -175,12 +175,12 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
     if (unlockedCount === 6) {
       setMascotData({
         mood: "proud",
-        text: "अतुलनीय! अतुलनीय! प्रिय बाल नागरिक, आपने सभी ६ विशिष्ट मेडल हासिल कर राष्ट्रीय बाल नागरिकता साक्षरता प्रमाण पत्र प्राप्त कर लिया है! आप भारत के सच्चे गौरव हैं! 🇮🇳🤝"
+        text: "अतुलनीय! अतुलनीय! प्रिय बाल नागरिक, आपने सभी 6 विशिष्ट मेडल हासिल कर राष्ट्रीय बाल नागरिकता साक्षरता प्रमाण पत्र प्राप्त कर लिया है! आप भारत के सच्चे गौरव हैं! 🇮🇳🤝"
       });
     } else if (unlockedCount > 0) {
       setMascotData({
         mood: "excited",
-        text: `शानदार प्रयास! आपने २९९ सेनानियों की प्रेरणा से ६ में से ${unlockedCount} मेडल पूरे कर लिए हैं। चलो बाकी भी जल्द अनलॉक करें!`
+        text: `शानदार प्रयास! आपने 299 सेनानियों की प्रेरणा से 6 में से ${unlockedCount} मेडल पूरे कर लिए हैं। चलो बाकी भी जल्द अनलॉक करें!`
       });
     } else {
       setMascotData({
@@ -436,7 +436,7 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
             </div>
 
             <p className="text-xs md:text-base leading-relaxed md:px-6">
-              ने <strong>'संविधान मित्र (बाल संस्करण)'</strong> शैक्षणिक सिमुलेशन खेल के अंतर्गत संविधान के सभी ६ महत्वपूर्ण मरुद्गण— गौरवशाली इतिहास पहेली, ६ मौलिक अधिकार, ११ कर्तव्य बोर्ड, चुनाव बूथ प्रत्यक्ष मतदान और राष्ट्रीय क्विज़ में <strong>शत-प्रतिशत (१००%)</strong> असाधारण योग्यता अर्जित कर उत्कृष्ट प्रदर्शन दर्ज किया है।
+              ने <strong>'संविधान मित्र (बाल संस्करण)'</strong> शैक्षणिक सिमुलेशन खेल के अंतर्गत संविधान के सभी 6 महत्वपूर्ण मरुद्गण— गौरवशाली इतिहास पहेली, 6 मौलिक अधिकार, 11 कर्तव्य बोर्ड, चुनाव बूथ प्रत्यक्ष मतदान और राष्ट्रीय क्विज़ में <strong>शत-प्रतिशत (100%)</strong> असाधारण योग्यता अर्जित कर उत्कृष्ट प्रदर्शन दर्ज किया है।
             </p>
             <p className="text-xs leading-relaxed text-slate-500 italic mt-4 md:px-12">
               "हम यह घोषणा करते हैं कि आप संविधान के सिद्धांतों का सदैव सम्मान करेंगे, भाईचारे को सुदृढ़ करेंगे तथा एक सच्चे कर्तव्यनिष्ठ भारतीय नागरिक की तरह देश की उन्नति में योगदान देंगे।"
@@ -500,7 +500,7 @@ export default function BadgesSection({ onNavigate, setMascotData, score }: Badg
             🔒 राष्ट्रीय बाल साक्षरता प्रमाण पत्र लॉक है (Locked)
           </h4>
           <p className="text-[11px] font-medium leading-relaxed px-4">
-            प्रमाण पत्र प्राप्त करने के लिए सभी ६ विशिष्ट मेडल अर्जित करें! वर्तमान में आपने <strong>{unlockedCount} / 6 मेडल</strong> अर्जित किए हैं। शेष विषयों के सिमुलेशन पूर्ण कर मेडल अनलॉक करें।
+            प्रमाण पत्र प्राप्त करने के लिए सभी 6 विशिष्ट मेडल अर्जित करें! वर्तमान में आपने <strong>{unlockedCount} / 6 मेडल</strong> अर्जित किए हैं। शेष विषयों के सिमुलेशन पूर्ण कर मेडल अनलॉक करें।
           </p>
         </div>
       )}

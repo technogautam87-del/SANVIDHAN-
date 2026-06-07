@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { Users, FileText, BookOpen, Sparkles, ChevronLeft, ChevronRight, HelpCircle, Play, Pause, Volume2, VolumeX, Shield, UserCheck, Feather, Landmark, Award } from "lucide-react";
+import { Users, FileText, BookOpen, Sparkles, ChevronLeft, ChevronRight, HelpCircle, Play, Pause, Volume2, VolumeX, Shield, UserCheck, Feather, Landmark, Award, Map, MapPin, Compass } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface HistorySectionProps {
@@ -147,8 +147,94 @@ const SPOT_PUZZLES: SpotPuzzle[] = [
   }
 ];
 
+export interface StateContribution {
+  id: string;
+  name: string;
+  members: string[];
+  historicalFact: string;
+  quoteOrInspiration: string;
+  colorTheme: string;
+  mapCoordinates: { x: number; y: number; label: string };
+}
+
+export const REGIONAL_CONTRIBUTIONS: StateContribution[] = [
+  {
+    id: "UP",
+    name: "उत्तर प्रदेश (United Provinces)",
+    members: ["पंडित जवाहरलाल नेहरू", "गोविंद बल्लभ पंत", "पुरुषोत्तम दास टंडन", "बेगम ऐज़ाज़ रसूल (एकमात्र मुस्लिम महिला सदस्य 👩‍💼)", "सुचेता कृपलानी"],
+    historicalFact: "संविधान सभा में सबसे अधिक 55 सदस्य संयुक्त प्रांत (अब उत्तर प्रदेश) से थे! इन्होंने देश की संघ संरचना (Federal structure) और राजभाषा हिन्दी के निर्धारण में बहुत महत्वपूर्ण भूमिका निभाई। महिलाओं के अधिकारों और अल्पसंख्यकों के संरक्षण पर यहाँ के सदस्यों ने प्रखर आवाज़ उठाई थी।",
+    quoteOrInspiration: "बेगम ऐज़ाज़ रसूल ने पृथक निर्वाचिका के खिलाफ तर्क दिया, जिससे देश में धार्मिक सौहार्द और एकजुटता का मार्ग प्रशस्त हुआ!",
+    colorTheme: "amber",
+    mapCoordinates: { x: 42, y: 38, label: "उत्तर प्रदेश" }
+  },
+  {
+    id: "BIHAR",
+    name: "बिहार (Bihar Province)",
+    members: ["डॉ. राजेंद्र प्रसाद (सभा अध्यक्ष 🎓)", "डॉ. सच्चिदानंद सिन्हा (प्रथम अस्थायी अध्यक्ष)", "जगजीवन राम (महान दलित नेता व श्रम मंत्री)", "रामेश्वर प्रसाद सिंह"],
+    historicalFact: "संविधान निर्माण की शुरुआत का श्रेय बिहार को जाता है! सभा के सबसे वरिष्ठ सदस्य डॉ. सच्चिदानंद सिन्हा को 9 दिसंबर 1946 को पहला अस्थायी अध्यक्ष चुना गया था। तत्पक्षात, बिहार के ही गौरव डॉ. राजेंद्र प्रसाद जी को सर्वसम्मति से स्थायी अध्यक्ष नियुक्त किया गया, जिन्होंने पूरे 3 साल तक बहसों का कुशल नेतृत्व किया।",
+    quoteOrInspiration: "डॉ. राजेंद्र प्रसाद ने कहा था कि संविधान की सफलता इसे लागू करने वाले लोगों की सच्चाई और चरित्र पर और अधिक निर्भर करेगी!",
+    colorTheme: "rose",
+    mapCoordinates: { x: 62, y: 44, label: "बिहार" }
+  },
+  {
+    id: "MAHARASHTRA",
+    name: "महाराष्ट्र (Bombay Province)",
+    members: ["डॉ. भीमराव अंबेडकर (जनक 🛡️)", "कन्हैयालाल माणिकलाल मुंशी (K.M. Munshi)", "हंसा मेहता (महिला अधिकार संरक्षक 👩)", "एम.आर. जयकर"],
+    historicalFact: "बंबई प्रांत (अब महाराष्ट्र व गुजरात) ने भारत रत्न बाबा साहब डॉ. भीमराव अंबेडकर जी को प्रारूप समिति का अध्यक्ष चुनकर देश को राह दी। बंबई से सदस्य हंसा मेहता ने संयुक्त राष्ट्र मानवाधिकार घोषणापत्र में 'All men are born free' के स्थान पर 'All human beings' लिखवाकर वैश्विक स्तर पर नारी शक्ति का लोहा मनवाया था!",
+    quoteOrInspiration: "हंसा मेहता ने संविधान सभा में महिलाओं की शिक्षा, मुफ्त स्वास्थ्य और समान नागरिक अधिकारों की पुरज़ोर मांग उठाई थी।",
+    colorTheme: "indigo",
+    mapCoordinates: { x: 28, y: 64, label: "महाराष्ट्र" }
+  },
+  {
+    id: "GUJARAT",
+    name: "गुजरात (Western States)",
+    members: ["सरदार वल्लभभाई पटेल (लौह पुरुष 🦁)", "के.एम. मुंशी", "बहादुर भाई पटेल", "हंसा मेहता"],
+    historicalFact: "सरदार वल्लभभाई पटेल ने 560 से अधिक रजवाड़ों को भारत में मिलाया, जिससे पूरे देश का एक कानून बन सका। वे संविधान सभा की 'मौलिक अधिकारों, अल्पसंख्यकों और जनजातीय क्षेत्रों' की परामर्श समिति के अध्यक्ष भी थे। उन्होंने मौलिक अधिकारों को हर बच्चे और हर नागरिक के लिए रक्षा कवच बनाया।",
+    quoteOrInspiration: "सरदार पटेल ने कड़े शब्दों में कहा था, 'यदि देश के भीतर छोटे-छोटे स्वतंत्र टुकड़े रहेंगे तो हमारी आज़ादी सुरक्षित नहीं रह पाएगी।'",
+    colorTheme: "orange",
+    mapCoordinates: { x: 18, y: 48, label: "गुजरात" }
+  },
+  {
+    id: "TAMIL_NADU",
+    name: "तमिलनाडु व मद्रास प्रांत (Madras Province)",
+    members: ["सी. राजगोपालाचारी", "डॉ. अमू स्वामीनाथन (बालिका शिक्षा सेनानी)", "दक्षायनी वेलायुधन (एकमात्र दलित महिला सदस्य 👩🏽‍🌾)", "जी. दुर्गाबाई देशमुख"],
+    historicalFact: "मद्रास प्रांत से आए सदस्यों का भारतीय संविधान की धर्मनिरपेक्षता (Secularism), सामाजिक कल्याण और विकेंद्रीकरण पर गहरा प्रभाव था। दक्षायनी वेलायुधन और दुर्गाबाई देशमुख जी ने देश में छुआछूत और भेदभाव को पूरी तरह कानूनन बंद कराने की लड़ाई लड़ी और बालिकाओं को मुफ्त शिक्षा का मार्ग दिखाया।",
+    quoteOrInspiration: "दक्षायनी वेलायुधन ने कहा था कि संविधान केवल नियमों का बंडल नहीं है, बल्कि यह हाशिए के लोगों को पहली बार मुख्यधारा में लाने का ऐतिहासिक अवसर है!",
+    colorTheme: "emerald",
+    mapCoordinates: { x: 38, y: 88, label: "तमिलनाडु" }
+  },
+  {
+    id: "WEST_BENGAL",
+    name: "पश्चिम बंगाल (Bengal Province)",
+    members: ["डॉ. श्यामा प्रसाद मुखर्जी", "रेणुका राय (समाज सुधारक 👩🏻)", "लीला रॉय", "हरेंद्र कुमार मुखर्जी (H.C. Mookerjee - उपाध्यक्ष)"],
+    historicalFact: "बंगाल प्रांत के सदस्यों ने संविधान बहसों में वैज्ञानिक दृष्टिकोण, शिक्षा का प्रसार और मानव अधिकारों पर बल दिया। हरेंद्र कुमार मुखर्जी संविधान सभा के उपाध्यक्ष चुने गए थे। रेणुका राय जी ने महिलाओं के पैतृक संपत्ति अधिकारों को संविधान में सुनिश्चित करने के लिए अभूतपूर्व योगदान दिया।",
+    quoteOrInspiration: "रेणुका राय ने संपत्ति के अधिकार और महिलाओं के सामाजिक न्याय के मुद्दे पर संविधान सभा में ऐतिहासिक भाषण दिया था!",
+    colorTheme: "purple",
+    mapCoordinates: { x: 74, y: 50, label: "पश्चिम बंगाल" }
+  },
+  {
+    id: "PUNJAB",
+    name: "पंजाब (East Punjab Province)",
+    members: ["सरदार बलदेव सिंह (भारत के प्रथम रक्षा मंत्री 🛡️)", "राजकुमारी अमरित कौर (प्रथम स्वास्थ्य मंत्री 👩‍⚕️)", "ज्ञानी गुरुमुख सिंह मुसाफिर", "भूपिंदर सिंह मान"],
+    historicalFact: "विभाजन की भयंकर त्रासदी का दंश झेलने वाले पंजाब के जांबाज नेताओं ने देश की रक्षा, स्वास्थ्य सुरक्षा और शरणार्थियों के पुनर्वास को संविधान में प्रमुखता दिलाई। राजकुमारी अमृत कौर (जो कपूरथला राजघराने से थीं) ने वर्षों तक देश की स्वास्थ्य संरचना का आधार रखा और बाल विवाह प्रथा पर पूर्ण प्रतिबंध की मांग की।",
+    quoteOrInspiration: "राजकुमारी अमृत कौर ने तर्क दिया कि बालिकाओं के स्वास्थ्य और शिक्षा के विकास के बिना भारत कभी भी विश्वगुरु नहीं बन सकता।",
+    colorTheme: "teal",
+    mapCoordinates: { x: 30, y: 22, label: "पंजाब" }
+  },
+  {
+    id: "MADHYA_PRADESH",
+    name: "मध्य प्रदेश (Central Provinces & Berar)",
+    members: ["डॉ. हरी सिंह गौर (महान शिक्षाविद् 🏫)", "सेठ गोविन्द दास", "रविशंकर शुक्ल", "अमृतलाल वी. ठक्कर"],
+    historicalFact: "मध्य भारत के इन प्रखर विचारकों ने हिन्दी को राजभाषा बनाने व आदिवासियों व पिछड़े व जनजातीय क्षेत्रों के विकास के लिए विशेष कानूनी आयोगों के गठन की पुरज़ोर सिफारिश की। डॉ. हरी सिंह गौर ने उच्च शिक्षा सुधार और न्यायिक स्वायत्तता पर बेहतरीन सुधार प्रस्तुत किए थे।",
+    quoteOrInspiration: "डॉ. हरी सिंह गौर ने देश में प्राथमिक स्कूलों के साथ-साथ गुणवत्तापूर्ण विश्वविद्यालयों की स्थापना को संविधान की आत्मा के समान महत्वपूर्ण माना!",
+    colorTheme: "cyan",
+    mapCoordinates: { x: 44, y: 56, label: "मध्य प्रदेश" }
+  }
+];
+
 export default function HistorySection({ setMascotData }: HistorySectionProps) {
-  const [activeTab, setActiveTab] = useState<"theater" | "figures" | "puzzle">("theater");
+  const [activeTab, setActiveTab] = useState<"theater" | "map" | "figures" | "puzzle">("theater");
+  const [selectedRegionId, setSelectedRegionId] = useState<string>("UP");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -178,6 +264,25 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
 
   const currentItem = HISTORICAL_MILESTONES[selectedIndex];
 
+  // Custom audio feedback chime for interactive state selection
+  const playStateSfx = (freq = 523.25) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {}
+  };
+
   // Speech Synthesizer
   const speakText = (textToSpeak: string) => {
     if (!window.speechSynthesis) return;
@@ -200,6 +305,15 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
         text: `दोस्तो, क्या आपको पता है, ${currentItem.year === "बोनस" ? "एक अनमोल रहस्य" : currentItem.year + " की ऐतिहासिक गाथा"}? ${currentItem.description}`
       });
       speakText(currentItem.speechText);
+    } else if (activeTab === "map") {
+      const region = REGIONAL_CONTRIBUTIONS.find(r => r.id === selectedRegionId);
+      if (region) {
+        setMascotData({
+          mood: "excited",
+          text: `बच्चों! क्या आपने देखा? ${region.name} ने हमारे संविधान निर्माण में कितना महान योगदान दिया है! उनके बारे में नीचे गौर से पढ़ें।`
+        });
+        speakText(`${region.name} से संविधान सभा में प्रमुख सदस्य शामिल थे जैसे ${region.members.slice(0, 3).join(", ")}।`);
+      }
     } else if (activeTab === "figures") {
       setMascotData({
         mood: "proud",
@@ -211,7 +325,7 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
         text: "इतिहास की सैर तो हो गई, अब अपनी समझ का प्रमाण दें! इस मजेदार ऐतिहासिक पहेली का सही उत्तर खोजें।"
       });
     }
-  }, [selectedIndex, activeTab, voiceEnabled]);
+  }, [selectedIndex, activeTab, voiceEnabled, selectedRegionId]);
 
   // Handle theater movie auto-play scenario
   useEffect(() => {
@@ -337,7 +451,7 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
         </div>
 
         {/* Tab Controls for History sections */}
-        <div className="bg-slate-100 p-1.5 rounded-full flex gap-1 self-start md:self-auto border">
+        <div className="bg-slate-100 p-1.5 rounded-2xl md:rounded-full flex flex-wrap gap-1 self-start md:self-auto border">
           <button
             onClick={() => setActiveTab("theater")}
             className={`px-4 py-2 rounded-full text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
@@ -348,6 +462,20 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
           >
             <Play className="w-3.5 h-3.5" />
             <span>🎬 इतिहास थियेटर</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("map");
+              playStateSfx(440); // play beautiful root chime A4
+            }}
+            className={`px-4 py-2 rounded-full text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "map"
+                ? "bg-amber-500 text-white shadow-md"
+                : "text-slate-650 hover:text-slate-900"
+            }`}
+          >
+            <Map className="w-3.5 h-3.5" />
+            <span>🗺️ इतिहास नक्शा (Map)</span>
           </button>
           <button
             onClick={() => setActiveTab("figures")}
@@ -376,23 +504,43 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
 
       {activeTab === "theater" && (
         <div className="space-y-6">
-          {/* Timeline Nodes Panel */}
-          <div className="bg-white border-4 border-slate-150 p-5 rounded-[32px] shadow-sm">
-            <div className="relative flex items-center justify-between">
-              {/* Connector line in the bg */}
-              <div className="absolute top-1/2 left-[5%] right-[5%] h-1 bg-slate-200 -translate-y-1/2 z-0"></div>
-              {/* Active filled connector */}
-              <div
-                className="absolute top-1/2 left-[5%] h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-green-500 -translate-y-1/2 z-0 transition-all duration-500"
-                style={{ width: `${(selectedIndex / (HISTORICAL_MILESTONES.length - 1)) * 90}%` }}
-              ></div>
-
+          {/* Timeline Nodes Panel: Multi-Colored Interactive 3D blocks */}
+          <div className="bg-slate-50 border-4 border-slate-200 p-4 rounded-[32px] shadow-inner mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 md:gap-4 justify-center items-stretch">
               {HISTORICAL_MILESTONES.map((item, index) => {
                 const active = selectedIndex === index;
-                const completed = index < selectedIndex;
-                let bgCls = "bg-white border-slate-350 text-slate-400";
-                if (active) bgCls = "bg-orange-500 border-orange-300 text-white scale-125 z-10 shadow-lg shadow-orange-500/10 ring-4 ring-orange-200";
-                else if (completed) bgCls = "bg-green-600 border-green-400 text-white z-10";
+                
+                // Beautiful vibrant themes for each step node
+                const colorTabConfigs = [
+                  {
+                    // 1946 (Orangish Saffron)
+                    activeCls: "bg-gradient-to-br from-orange-500 to-amber-500 border-orange-400 text-white shadow-md shadow-orange-500/30 scale-[1.03] z-10 ring-4 ring-orange-250 font-black",
+                    inactiveCls: "bg-white hover:bg-orange-50 border-slate-200 text-slate-700 hover:border-orange-350 hover:text-orange-950"
+                  },
+                  {
+                    // 1947 (Crimson Red)
+                    activeCls: "bg-gradient-to-br from-rose-500 to-red-600 border-rose-400 text-white shadow-md shadow-rose-500/30 scale-[1.03] z-10 ring-4 ring-rose-250 font-black",
+                    inactiveCls: "bg-white hover:bg-rose-50 border-slate-200 text-slate-700 hover:border-rose-350 hover:text-rose-950"
+                  },
+                  {
+                    // 1949 (Purple Indigo)
+                    activeCls: "bg-gradient-to-br from-indigo-500 to-purple-650 border-indigo-400 text-white shadow-md shadow-indigo-500/30 scale-[1.03] z-10 ring-4 ring-indigo-250 font-black",
+                    inactiveCls: "bg-white hover:bg-indigo-50 border-slate-200 text-slate-700 hover:border-indigo-350 hover:text-indigo-950"
+                  },
+                  {
+                    // 1950 (Emerald Green)
+                    activeCls: "bg-gradient-to-br from-emerald-600 to-teal-650 border-emerald-400 text-white shadow-md shadow-emerald-500/30 scale-[1.03] z-10 ring-4 ring-emerald-250 font-black",
+                    inactiveCls: "bg-white hover:bg-emerald-50 border-slate-200 text-slate-700 hover:border-emerald-350 hover:text-emerald-950"
+                  },
+                  {
+                    // Bonus (Golden Amber)
+                    activeCls: "bg-gradient-to-br from-amber-500 to-yellow-500 border-amber-400 text-white shadow-md shadow-amber-500/30 scale-[1.03] z-10 ring-4 ring-amber-250 font-black",
+                    inactiveCls: "bg-white hover:bg-amber-50 border-slate-200 text-slate-700 hover:border-amber-350 hover:text-amber-950"
+                  }
+                ];
+
+                const cfg = colorTabConfigs[index] || colorTabConfigs[0];
+                const finalStyle = active ? cfg.activeCls : cfg.inactiveCls;
 
                 return (
                   <button
@@ -401,20 +549,25 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
                       setIsPlaying(false);
                       setSelectedIndex(index);
                     }}
-                    className="relative z-10 flex flex-col items-center cursor-pointer select-none"
+                    className={`relative px-3 py-3 md:py-4 rounded-[24px] border-[3px] cursor-pointer transition-all duration-300 flex flex-col items-center justify-center gap-1.5 text-center select-none ${finalStyle} ${
+                      index === 4 && !active ? "sm:col-span-1 col-span-2" : ""
+                    }`}
                   >
-                    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-3 flex items-center justify-center transition-all ${bgCls}`}>
-                      {item.iconName === "Users" && <Users className="w-5 h-5" />}
-                      {item.iconName === "FileText" && <FileText className="w-5 h-5" />}
-                      {item.iconName === "BookOpen" && <BookOpen className="w-5 h-5" />}
-                      {item.iconName === "Sparkles" && <Sparkles className="w-5 h-5" />}
-                      {item.iconName === "Feather" && <Feather className="w-5 h-5" />}
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${active ? "bg-white/20" : "bg-slate-100"}`}>
+                      {item.iconName === "Users" && <Users className="w-4.5 h-4.5" />}
+                      {item.iconName === "FileText" && <FileText className="w-4.5 h-4.5" />}
+                      {item.iconName === "BookOpen" && <BookOpen className="w-4.5 h-4.5" />}
+                      {item.iconName === "Sparkles" && <Sparkles className="w-4.5 h-4.5" />}
+                      {item.iconName === "Feather" && <Feather className="w-4.5 h-4.5" />}
                     </div>
-                    <span className={`mt-1.5 text-[10px] md:text-xs font-black px-2 py-0.5 rounded-full transition-all ${
-                      active ? "bg-orange-100 text-orange-800" : "text-slate-500"
-                    }`}>
-                      {item.year}
-                    </span>
+                    <div className="flex flex-col items-center leading-none">
+                      <span className="text-[10px] md:text-[11px] font-extrabold tracking-tight block">
+                        {item.year === "बोनस" ? "💡 रोचक गाथा" : `कदम 0${index + 1}`}
+                      </span>
+                      <span className={`text-[11px] md:text-sm font-black mt-1 ${active ? "text-yellow-150" : "text-slate-600"}`}>
+                        {item.year === "बोनस" ? "गुप्त रहस्य" : item.year}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
@@ -622,6 +775,47 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
 
             <div className="relative border-l-4 border-dashed border-indigo-200 pl-8 md:pl-12 space-y-12 max-w-4xl mx-auto py-6">
               {HISTORICAL_MILESTONES.map((item, index) => {
+                // Determine step-specific colorful accents and blocks
+                const scrollBlockConfigs = [
+                  {
+                    // 1946 Saffron Block
+                    cardBg: "bg-gradient-to-br from-amber-50 to-orange-50/50 border-orange-300 hover:border-orange-500 shadow-orange-100/50 hover:shadow-orange-200/50",
+                    badgeCls: "bg-orange-100 text-orange-950 border-orange-200",
+                    accentLine: "border-orange-400",
+                    sidePanelBg: "bg-gradient-to-br from-orange-500 to-amber-500 border-orange-600"
+                  },
+                  {
+                    // 1947 Rose/Red Block
+                    cardBg: "bg-gradient-to-br from-rose-50 to-red-50/50 border-rose-300 hover:border-rose-500 shadow-rose-100/50 hover:shadow-rose-200/50",
+                    badgeCls: "bg-rose-100 text-rose-950 border-rose-200",
+                    accentLine: "border-rose-400",
+                    sidePanelBg: "bg-gradient-to-br from-rose-500 to-red-600 border-rose-600"
+                  },
+                  {
+                    // 1949 Purple/Indigo Block
+                    cardBg: "bg-gradient-to-br from-purple-50 to-indigo-50/50 border-purple-300 hover:border-purple-500 shadow-purple-100/50 hover:shadow-purple-200/50",
+                    badgeCls: "bg-purple-100 text-purple-950 border-purple-200",
+                    accentLine: "border-purple-400",
+                    sidePanelBg: "bg-gradient-to-br from-indigo-500 to-purple-650 border-indigo-600"
+                  },
+                  {
+                    // 1950 Emerald/Green Block
+                    cardBg: "bg-gradient-to-br from-emerald-51 to-teal-50/50 border-emerald-300 hover:border-emerald-500 shadow-emerald-100/50 hover:shadow-emerald-200/50",
+                    badgeCls: "bg-emerald-100 text-emerald-950 border-emerald-200",
+                    accentLine: "border-emerald-400",
+                    sidePanelBg: "bg-gradient-to-br from-emerald-600 to-teal-650 border-emerald-705"
+                  },
+                  {
+                    // Bonus Gold Block
+                    cardBg: "bg-gradient-to-br from-amber-50/95 to-yellow-50/50 border-amber-300 hover:border-amber-500 shadow-amber-100/50 hover:shadow-yellow-250/50",
+                    badgeCls: "bg-amber-100 text-amber-950 border-amber-200",
+                    accentLine: "border-amber-400",
+                    sidePanelBg: "bg-gradient-to-br from-amber-500 to-yellow-500 border-amber-600"
+                  }
+                ];
+
+                const cfg = scrollBlockConfigs[index] || scrollBlockConfigs[0];
+
                 return (
                   <motion.div
                     key={item.id}
@@ -629,7 +823,7 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
                     whileInView={{ opacity: 1, x: 0, y: 0 }}
                     viewport={{ once: false, amount: 0.2 }}
                     transition={{ type: "spring", stiffness: 80, delay: 0.05 }}
-                    className="relative bg-white border-3 border-slate-150 p-6 md:p-8 rounded-[35px] shadow-md hover:shadow-xl hover:border-indigo-300 transition-all flex flex-col md:flex-row gap-6 items-center"
+                    className={`relative border-3 p-6 md:p-8 rounded-[35px] shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col md:flex-row gap-6 items-center ${cfg.cardBg}`}
                   >
                     {/* Animated Flag flying in on scroll */}
                     <div className="absolute top-6 -left-[51px] md:-left-[69px] z-20">
@@ -643,8 +837,8 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
                       >
                         <motion.span
                           animate={{ 
-                            rotate: [0, 12, -12, 12, 0],
-                            y: [0, -3, 0]
+                             rotate: [0, 12, -12, 12, 0],
+                             y: [0, -3, 0]
                           }}
                           transition={{ 
                             repeat: Infinity, 
@@ -661,25 +855,25 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
                     {/* Left node label */}
                     <div className="space-y-3 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] font-black bg-orange-100 border border-orange-200 text-orange-850 px-3 py-1 rounded-xl uppercase">
+                        <span className={`text-[10px] font-black border px-3 py-1 rounded-xl uppercase ${cfg.badgeCls}`}>
                           वर्ष {item.year}
                         </span>
-                        <h4 className="text-base font-black text-slate-800">
+                        <h4 className="text-base font-black text-slate-900">
                           {item.title}
                         </h4>
                       </div>
 
-                      <p className="text-xs md:text-sm font-black text-slate-600 leading-relaxed italic border-l-2 border-indigo-400 pl-2">
+                      <p className={`text-xs md:text-sm font-black text-slate-800 leading-relaxed italic border-l-3 pl-2 ${cfg.accentLine}`}>
                         "{item.description}"
                       </p>
 
-                      <p className="text-xs text-slate-500 font-bold leading-relaxed bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                      <p className="text-xs text-slate-700 font-bold leading-relaxed bg-white/80 p-4 rounded-2xl border border-white/50">
                         {item.detail}
                       </p>
                     </div>
 
                     {/* Side Character Graphic Panel */}
-                    <div className="w-full md:w-36 bg-slate-900 border-2 border-slate-950 rounded-[28px] p-4 text-white flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0 aspect-video md:aspect-square shadow-inner">
+                    <div className={`w-full md:w-36 border-2 border-black/10 rounded-[28px] p-4 text-white flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0 aspect-video md:aspect-square shadow-md ${cfg.sidePanelBg}`}>
                       <div className="absolute top-[-20px] right-[-20px] w-20 h-20 bg-white/5 rounded-full filter blur-xl"></div>
                       <div className="text-3xl filter drop-shadow">
                         {item.illustrationType === "assembly" && "👨‍⚖️"}
@@ -688,7 +882,7 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
                         {item.illustrationType === "flag" && "🌟"}
                         {item.illustrationType === "calligrapher" && "✍️"}
                       </div>
-                      <span className="text-[9px] font-black text-slate-350 mt-2 block tracking-wider uppercase">
+                      <span className="text-[9px] font-black text-white/90 mt-2 block tracking-wider uppercase">
                         {item.illustrationType === "assembly" && "संविधान सभा"}
                         {item.illustrationType === "writing" && "प्रारूप लेखन"}
                         {item.illustrationType === "document" && "पावन ग्रंथ"}
@@ -711,6 +905,427 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
                 हमारे संविधान की मूल हिंदी तथा अंग्रेजी हस्ताक्षरित प्रतियों को नष्ट होने से बचाने के लिए संसद भवन के पुस्तकालय भवन में **हीलियम गैस (Helium Gas)** के विशेष पारदर्शी डिब्बे में बंद कर रखा गया है, ताकि यह अनमोल धरोहर कई पीढ़ियों तक सुरक्षित रहे!
               </p>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {activeTab === "map" && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* Header Description */}
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-[10px] font-black text-amber-600 bg-amber-100 border-2 border-amber-300 px-3 py-1 rounded-full uppercase tracking-widest inline-block animate-pulse">
+              🗺️ भारत मानचित्र साहसिक यात्रा
+            </span>
+            <h3 className="text-2xl font-black text-slate-800">
+              संवैधानिक इतिहास मानचित्र (Constitutional Unity Map)
+            </h3>
+            <p className="text-xs text-slate-500 font-bold">
+              भारत के विभिन्न क्षेत्रों/प्रांतों पर क्लिक करें और देखें कि किस तरह पूरे देश के महान निर्माताओं ने मिलकर हमारे पवित्र संविधान के पन्नों को अपने आदर्शों से सजाया!
+            </p>
+          </div>
+
+          {/* Core Interactive Layout Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+            
+            {/* Left Box: SVG Interactive Vector Map Container */}
+            <div className="lg:col-span-5 bg-gradient-to-b from-slate-900 to-slate-950 border-4 border-slate-950 rounded-[40px] p-5 shadow-2xl relative flex flex-col justify-between overflow-hidden min-h-[460px]">
+              {/* Grid Lines Overlay */}
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:30px_30px] opacity-15 pointer-events-none"></div>
+
+              {/* Decorative Compass and Shield */}
+              <div className="absolute top-4 left-4 flex items-center gap-2 text-slate-400 select-none z-10">
+                <Compass className="w-5 h-5 text-amber-400 animate-spin duration-[40s]" />
+                <span className="text-[9px] font-mono tracking-widest opacity-60">NORTH PATHFINDER</span>
+              </div>
+
+              {/* Saffron-White-Green Gradient Ring on top-right corner representing Indian Tricolor subtly */}
+              <div className="absolute top-4 right-4 flex gap-1 z-10 bg-slate-800/40 p-1 rounded-xl">
+                <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+              </div>
+
+              {/* Decorative title inside map frame */}
+              <div className="text-center pt-2 pb-1 relative z-10">
+                <span className="text-[10px] bg-slate-800 text-slate-350 border border-slate-700 px-3 py-1 rounded-full font-black tracking-wider uppercase">
+                  संवैधानिक एकता सूत्र (Unity Web)
+                </span>
+              </div>
+
+              {/* Map SVG Canvas */}
+              <div className="relative flex-1 flex items-center justify-center py-4">
+                <svg
+                  viewBox="0 0 380 430"
+                  className="w-full h-auto max-h-[380px] drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] select-none"
+                >
+                  {/* Decorative stylized dotted boundaries of Indian coastline & border outline */}
+                  <path
+                    d="M 120,40 L 150,45 L 180,60 L 210,50 L 220,70 L 240,80 L 230,105 L 260,115 L 290,130 L 310,135 L 340,150 L 330,175 L 300,185 L 280,180 L 290,205 L 320,210 L 330,225 L 310,240 L 285,235 L 275,250 L 260,265 L 245,280 L 240,300 L 225,320 L 215,340 L 195,365 L 180,390 L 165,410 L 160,390 L 150,370 L 140,350 L 130,330 L 125,310 L 115,295 L 105,275 L 110,260 L 95,250 L 80,240 L 60,235 L 45,215 L 60,200 L 75,185 L 90,165 L 95,150 L 115,130 Z"
+                    fill="none"
+                    stroke="#1e293b"
+                    strokeWidth="3"
+                    strokeDasharray="6,4"
+                    className="opacity-70"
+                  />
+                  
+                  {/* Glowing stylized Curved Networks (indicating drafting integration threads between provinces) */}
+                  <g className="stroke-slate-750 stroke-[1.5] fill-none opacity-40">
+                    <path d="M 120,110 Q 185,175 185,175" /> {/* Punjab to UP */}
+                    <path d="M 75,220 Q 185,175 185,175" />  {/* Gujarat to UP */}
+                    <path d="M 120,290 Q 185,175 185,175" /> {/* Bombay to UP */}
+                    <path d="M 175,240 Q 185,175 185,175" /> {/* MP to UP */}
+                    <path d="M 265,200 Q 185,175 185,175" /> {/* Bihar to UP */}
+                    <path d="M 310,225 Q 265,200 265,200" /> {/* Bengal to Bihar */}
+                    <path d="M 165,390 Q 120,290 120,290" /> {/* Madras to Bombay */}
+                    <path d="M 165,390 Q 175,240 175,240" /> {/* Madras to MP */}
+                  </g>
+
+                  {/* Pulsing state marker nodes */}
+                  {REGIONAL_CONTRIBUTIONS.map((state) => {
+                    const isSelected = selectedRegionId === state.id;
+                    const coords = state.mapCoordinates;
+
+                    // Match coordinates to standard SVG layout scale (approximate points for visualization)
+                    const nodeX = state.id === "PUNJAB" ? 115 : 
+                                  state.id === "GUJARAT" ? 70 :
+                                  state.id === "MAHARASHTRA" ? 110 :
+                                  state.id === "UP" ? 180 :
+                                  state.id === "MADHYA_PRADESH" ? 170 :
+                                  state.id === "BIHAR" ? 255 :
+                                  state.id === "WEST_BENGAL" ? 300 : 
+                                  state.id === "TAMIL_NADU" ? 170 : coords.x;
+                                  
+                    const nodeY = state.id === "PUNJAB" ? 95 : 
+                                  state.id === "GUJARAT" ? 200 :
+                                  state.id === "MAHARASHTRA" ? 285 :
+                                  state.id === "UP" ? 155 :
+                                  state.id === "MADHYA_PRADESH" ? 220 :
+                                  state.id === "BIHAR" ? 180 :
+                                  state.id === "WEST_BENGAL" ? 205 : 
+                                  state.id === "TAMIL_NADU" ? 370 : coords.y;
+
+                    // Emojis mapping for state representation
+                    const emojiMap: Record<string, string> = {
+                      UP: "🤝",
+                      BIHAR: "🎓",
+                      MAHARASHTRA: "⚖️",
+                      GUJARAT: "🦁",
+                      TAMIL_NADU: "🌴",
+                      WEST_BENGAL: "🎨",
+                      PUNJAB: "🛡️",
+                      MADHYA_PRADESH: "🏫"
+                    };
+
+                    let colorThemeCls = "fill-amber-500 stroke-amber-400";
+                    let ringCls = "stroke-amber-400";
+                    if (state.colorTheme === "rose") { colorThemeCls = "fill-rose-500 stroke-rose-400"; ringCls = "stroke-rose-400"; }
+                    if (state.colorTheme === "indigo") { colorThemeCls = "fill-indigo-500 stroke-indigo-400"; ringCls = "stroke-indigo-400"; }
+                    if (state.colorTheme === "orange") { colorThemeCls = "fill-orange-500 stroke-orange-400"; ringCls = "stroke-orange-400"; }
+                    if (state.colorTheme === "emerald") { colorThemeCls = "fill-emerald-500 stroke-emerald-400"; ringCls = "stroke-emerald-400"; }
+                    if (state.colorTheme === "purple") { colorThemeCls = "fill-purple-500 stroke-purple-400"; ringCls = "stroke-purple-400"; }
+                    if (state.colorTheme === "teal") { colorThemeCls = "fill-teal-500 stroke-teal-400"; ringCls = "stroke-teal-400"; }
+                    if (state.colorTheme === "cyan") { colorThemeCls = "fill-cyan-500 stroke-cyan-400"; ringCls = "stroke-cyan-400"; }
+
+                    return (
+                      <g
+                        key={state.id}
+                        className="cursor-pointer group"
+                        onClick={() => {
+                          setSelectedRegionId(state.id);
+                          // Click SFX pitch based on state frequency
+                          const pitchFreq = state.id === "UP" ? 523 :
+                                            state.id === "BIHAR" ? 587 :
+                                            state.id === "MAHARASHTRA" ? 659 :
+                                            state.id === "GUJARAT" ? 698 :
+                                            state.id === "TAMIL_NADU" ? 784 :
+                                            state.id === "WEST_BENGAL" ? 880 :
+                                            state.id === "PUNJAB" ? 987 : 1046;
+                          playStateSfx(pitchFreq);
+                        }}
+                      >
+                        {/* Selected State soft outer highlight halo */}
+                        {isSelected && (
+                          <circle
+                            cx={nodeX}
+                            cy={nodeY}
+                            r="24"
+                            className="fill-white/10 animate-pulse stroke-slate-500 stroke-[0.5] stroke-dasharray-[3,2]"
+                          />
+                        )}
+
+                        {/* Interactive Ripple ring on hover/select */}
+                        <circle
+                          cx={nodeX}
+                          cy={nodeY}
+                          r={isSelected ? "18" : "14"}
+                          className={`fill-none stroke-2 opacity-55 ${ringCls} ${
+                            isSelected ? "animate-ping opacity-30" : "group-hover:scale-125 transition-transform"
+                          }`}
+                        />
+
+                        {/* Node body circle */}
+                        <circle
+                          cx={nodeX}
+                          cy={nodeY}
+                          r={isSelected ? "12" : "10"}
+                          className={`stroke-2 transition-all duration-300 ${colorThemeCls} ${
+                            isSelected ? "r-12 shadow-lg filter saturate-150" : "group-hover:r-[11px]"
+                          }`}
+                        />
+
+                        {/* Inside emoji / icon */}
+                        <text
+                          x={nodeX}
+                          y={nodeY + 4}
+                          textAnchor="middle"
+                          fontSize={isSelected ? "11" : "9"}
+                          className="pointer-events-none select-none font-bold"
+                        >
+                          {emojiMap[state.id] || "📍"}
+                        </text>
+
+                        {/* Sleek Floating Hover Tag Label */}
+                        <g transform={`translate(${nodeX}, ${nodeY + 22})`}>
+                          <rect
+                            x="-38"
+                            y="-9"
+                            width="76"
+                            height="16"
+                            rx="5"
+                            className={`${
+                              isSelected 
+                                ? "fill-slate-100 stroke-amber-450 text-slate-900 font-extrabold" 
+                                : "fill-slate-800/85 stroke-slate-750 text-slate-400 group-hover:fill-slate-700"
+                            } stroke-[1] transition-colors`}
+                          />
+                          <text
+                            x="0"
+                            y="2"
+                            textAnchor="middle"
+                            fontSize="8.5"
+                            className={`font-black tracking-tight leading-none pointer-events-none select-none ${
+                              isSelected ? "fill-slate-950 font-black" : "fill-slate-300"
+                            }`}
+                          >
+                            {state.mapCoordinates.label}
+                          </text>
+                        </g>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+
+              {/* Little map navigation clue */}
+              <div className="text-slate-400 text-center text-[10px] font-bold py-2 bg-slate-900 border-t border-slate-800 rounded-b-[30px]">
+                💡 मानचित्र पर राज्यों के रंगों और चिह्नों पर उंगली/माउस ले जाकर क्लिक करें!
+              </div>
+            </div>
+
+            {/* Right Box: State Contribution Bento Details View */}
+            <div className="lg:col-span-7 flex flex-col justify-between gap-6">
+              
+              {/* State Horizontal Buttons Grid for quick mobile/tablet accessibility */}
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-[28px] p-3 shadow-inner">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-2 px-1">
+                  📌 त्वरित राज्य ब्राउज़र (Touch State Selector):
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 justify-stretch">
+                  {REGIONAL_CONTRIBUTIONS.map((s) => {
+                    const isSelected = selectedRegionId === s.id;
+                    
+                    // Thematic button colors based on colorTheme
+                    const themeColors: Record<string, string> = {
+                      amber: "border-amber-300 bg-amber-50 text-amber-950 ring-amber-300/40 hover:bg-amber-100",
+                      rose: "border-rose-300 bg-rose-50 text-rose-950 ring-rose-300/40 hover:bg-rose-100",
+                      indigo: "border-indigo-300 bg-indigo-50 text-indigo-950 ring-indigo-300/40 hover:bg-indigo-100",
+                      orange: "border-orange-300 bg-orange-50 text-orange-950 ring-orange-300/40 hover:bg-orange-100",
+                      emerald: "border-emerald-300 bg-emerald-50 text-emerald-950 ring-emerald-300/40 hover:bg-emerald-100",
+                      purple: "border-purple-300 bg-purple-50 text-purple-950 ring-purple-300/40 hover:bg-purple-100",
+                      teal: "border-teal-300 bg-teal-50 text-teal-950 ring-teal-300/40 hover:bg-teal-100",
+                      cyan: "border-cyan-300 bg-cyan-50 text-cyan-950 ring-cyan-300/40 hover:bg-cyan-100"
+                    };
+
+                    const finalColorStyle = isSelected
+                      ? "bg-slate-900 border-slate-900 text-white shadow-md scale-[1.02] font-black"
+                      : `${themeColors[s.colorTheme]} text-slate-700 font-bold`;
+
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedRegionId(s.id);
+                          playStateSfx(550);
+                        }}
+                        className={`py-2 px-2.5 rounded-xl border-1.5 text-[11px] text-center leading-none truncate transition-all duration-250 cursor-pointer ${finalColorStyle}`}
+                      >
+                        {s.mapCoordinates.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bento Box Container with micro-details */}
+              {(() => {
+                const currentRegion = REGIONAL_CONTRIBUTIONS.find(r => r.id === selectedRegionId) || REGIONAL_CONTRIBUTIONS[0];
+
+                // Design state banners matching theme
+                const themeBanners: Record<string, { bannerBg: string; textCls: string; accentBorder: string; badgeCls: string }> = {
+                  amber: { bannerBg: "from-amber-400 to-amber-650", textCls: "text-amber-950", accentBorder: "border-amber-300 bg-amber-50", badgeCls: "bg-amber-100 text-amber-955 border-amber-300" },
+                  rose: { bannerBg: "from-rose-400 to-rose-650", textCls: "text-rose-950", accentBorder: "border-rose-300 bg-rose-50", badgeCls: "bg-rose-100 text-rose-955 border-rose-300" },
+                  indigo: { bannerBg: "from-indigo-500 to-indigo-700", textCls: "text-indigo-950", accentBorder: "border-indigo-300 bg-indigo-50", badgeCls: "bg-indigo-100 text-indigo-955 border-indigo-300" },
+                  orange: { bannerBg: "from-orange-400 to-orange-650", textCls: "text-orange-950", accentBorder: "border-orange-300 bg-orange-50", badgeCls: "bg-orange-100 text-orange-955 border-orange-300" },
+                  emerald: { bannerBg: "from-emerald-500 to-emerald-700", textCls: "text-emerald-950", accentBorder: "border-emerald-300 bg-emerald-50", badgeCls: "bg-emerald-100 text-emerald-955 border-emerald-300" },
+                  purple: { bannerBg: "from-purple-500 to-purple-700", textCls: "text-purple-950", accentBorder: "border-purple-300 bg-purple-50", badgeCls: "bg-purple-100 text-purple-955 border-purple-300" },
+                  teal: { bannerBg: "from-teal-500 to-teal-700", textCls: "text-teal-950", accentBorder: "border-teal-300 bg-teal-50", badgeCls: "bg-teal-105 text-teal-955 border-teal-300" },
+                  cyan: { bannerBg: "from-cyan-550 to-cyan-700", textCls: "text-cyan-950", accentBorder: "border-cyan-300 bg-cyan-50", badgeCls: "bg-cyan-100 text-cyan-955 border-cyan-300" }
+                };
+
+                const bannerStyle = themeBanners[currentRegion.colorTheme] || themeBanners.amber;
+
+                return (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentRegion.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.25 }}
+                      className="bg-white border-4 border-slate-200 rounded-[35px] overflow-hidden shadow-xl flex flex-col justify-between flex-1"
+                    >
+                      {/* State Title Banner Panel */}
+                      <div className={`bg-gradient-to-r ${bannerStyle.bannerBg} p-5 text-white flex justify-between items-center relative overflow-hidden shrink-0`}>
+                        <div className="absolute top-[-30px] right-[-30px] w-36 h-36 bg-white/5 rounded-full filter blur-xl"></div>
+                        
+                        <div className="flex items-center gap-3 relative z-10">
+                          <span className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center text-2xl select-none border border-white/30 backdrop-blur-xs">
+                            {currentRegion.id === "UP" && "🤝"}
+                            {currentRegion.id === "BIHAR" && "🎓"}
+                            {currentRegion.id === "MAHARASHTRA" && "⚖️"}
+                            {currentRegion.id === "GUJARAT" && "🦁"}
+                            {currentRegion.id === "TAMIL_NADU" && "🌴"}
+                            {currentRegion.id === "WEST_BENGAL" && "🎨"}
+                            {currentRegion.id === "PUNJAB" && "🛡️"}
+                            {currentRegion.id === "MADHYA_PRADESH" && "🏫"}
+                          </span>
+                          <div>
+                            <span className="text-[10px] bg-black/25 text-white/95 px-2.5 py-0.5 rounded-full font-black tracking-wide uppercase">
+                              क्षेत्रीय इतिहास गाथा
+                            </span>
+                            <h4 className="text-base sm:text-xl font-black mt-0.5 select-all leading-tight">
+                              {currentRegion.name}
+                            </h4>
+                          </div>
+                        </div>
+
+                        {/* Speech buttons specific to map region content */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.speechSynthesis) {
+                              window.speechSynthesis.cancel();
+                            }
+                            // Narrate the beautiful contribution
+                            const textToSpeak = `${currentRegion.name} के प्रमुख सदस्यों में शामिल थे ${currentRegion.members.join(", ")}। ${currentRegion.historicalFact}`;
+                            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                            utterance.lang = "hi-IN";
+                            utterance.rate = 0.95;
+                            window.speechSynthesis.speak(utterance);
+                            playStateSfx(880);
+                          }}
+                          className="px-3.5 py-1.5 bg-slate-900 border border-slate-800 text-[10px] font-black rounded-xl hover:bg-slate-800 flex items-center gap-1.5 transition text-white self-center shadow cursor-pointer relative z-10 shrink-0"
+                          title="इस क्षेत्र का इतिहास भाषण सुनें"
+                        >
+                          <Volume2 className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                          <span className="hidden sm:inline">कहानी सुनें</span>
+                        </button>
+                      </div>
+
+                      {/* Content Details Grid (Bento columns) */}
+                      <div className="p-5 md:p-6 space-y-5 flex-1 flex flex-col justify-between">
+                        
+                        {/* Section 1: Constitutional Draft & Historical Fact Contribution */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs">📜</span>
+                            <h5 className="text-[11px] font-mono tracking-wider font-bold text-slate-400 uppercase">
+                              संविधान सभा में योगदान तथा इतिहास:
+                            </h5>
+                          </div>
+                          <p className="text-xs md:text-sm text-slate-850 font-bold leading-relaxed bg-slate-50 border border-slate-150 p-4 rounded-2xl relative shadow-inner">
+                            {currentRegion.historicalFact}
+                          </p>
+                        </div>
+
+                        {/* Section 2: Core Personalities / Leaders (Constituent Assembly members) */}
+                        <div className="space-y-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs">👥</span>
+                            <h5 className="text-[11px] font-mono tracking-wider font-bold text-slate-400 uppercase">
+                              प्रमुख संविधान निर्माता (Key Assembly Members):
+                            </h5>
+                          </div>
+                          
+                          {/* Horizontal chips list */}
+                          <div className="flex flex-wrap gap-2">
+                            {currentRegion.members.map((member, mIdx) => {
+                              // Detect women leaders specifically to accent them
+                              const isWoman = member.includes("बेगम") || member.includes("महिला") || member.includes("कृपलानी") || member.includes("मेहता") || member.includes("स्वामीनाथन") || member.includes("वेलायुधन") || member.includes("देशमुख") || member.includes("राय") || member.includes("लॉय") || member.includes("कौर");
+                              
+                              return (
+                                <div
+                                  key={mIdx}
+                                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-black transition-colors flex items-center gap-1.5 ${
+                                    isWoman
+                                      ? "bg-rose-50 border-rose-300 text-rose-900 shadow-sm"
+                                      : `${bannerStyle.accentBorder} text-slate-900`
+                                  }`}
+                                >
+                                  {isWoman ? (
+                                    <span className="text-xs">👩‍⚖️</span>
+                                  ) : (
+                                    <span className="text-xs">🎓</span>
+                                  )}
+                                  <span>{member}</span>
+                                  {isWoman && (
+                                    <span className="text-[8px] bg-rose-200 text-rose-800 font-extrabold px-1 rounded">
+                                      महिला सदस्य
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Section 3: Quote card / Wisdom for students */}
+                        <div className={`p-4 rounded-2xl border-l-[6px] text-xs font-semibold relative overflow-hidden ${bannerStyle.accentBorder} tracking-normal`}>
+                          <span className="text-slate-350/50 font-serif text-5xl absolute top-[-5px] right-2 select-none pointer-events-none">“</span>
+                          <span className="text-[9px] font-mono font-bold text-slate-400 block uppercase mb-1">
+                            ⭐️ बच्चों के लिए प्रेरक ज्ञान/विचार:
+                          </span>
+                          <p className="text-slate-800 font-medium italic pl-1 text-[11px] leading-relaxed relative z-10 pr-4">
+                            "{currentRegion.quoteOrInspiration}"
+                          </p>
+                        </div>
+
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                );
+              })()}
+
+            </div>
+
+          </div>
+
+          {/* Saffron-White-Green tricolor divider banner */}
+          <div className="h-2 w-full rounded-full flex overflow-hidden">
+            <div className="h-full bg-orange-500 w-1/3"></div>
+            <div className="h-full bg-white w-1/3"></div>
+            <div className="h-full bg-emerald-600 w-1/3"></div>
           </div>
         </div>
       )}

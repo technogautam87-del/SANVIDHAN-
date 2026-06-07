@@ -39,13 +39,16 @@
       "description": "Record of a school participating in the democratic election booth simulation",
       "type": "object",
       "properties": {
+        "schoolRegCode": { "type": "string" },
         "schoolName": { "type": "string" },
         "districtName": { "type": "string" },
         "blockName": { "type": "string" },
         "votersCount": { "type": "number" },
+        "candidatesCount": { "type": "number" },
+        "winnerName": { "type": "string" },
         "timestamp": { "type": "string" }
       },
-      "required": ["schoolName", "districtName", "blockName", "votersCount", "timestamp"]
+      "required": ["schoolRegCode", "schoolName", "districtName", "blockName", "votersCount", "candidatesCount", "winnerName", "timestamp"]
     }
   },
   "firestore": {
