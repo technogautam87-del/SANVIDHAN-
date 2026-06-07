@@ -92,6 +92,7 @@ export default function PreambleSection({ setMascotData }: PreambleSectionProps)
   const [speechSpeed, setSpeechSpeed] = useState(0.85); // Child-friendly slow speed
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const visualTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Pre-parse sentence lines into individual word segments with precise character index offsets
   const parsedLines = useMemo(() => {
@@ -134,6 +135,25 @@ export default function PreambleSection({ setMascotData }: PreambleSectionProps)
     });
   }, [selectedLang]);
 
+  // List of all word segments for the current language
+  const allWordSegments = useMemo(() => {
+    const list: Array<{ id: string; text: string; lineIdx: number; globalStart: number; globalEnd: number }> = [];
+    parsedLines.forEach((lineObj) => {
+      lineObj.segments.forEach((seg) => {
+        if (!seg.isSpace && seg.text.trim().length > 0) {
+          list.push({
+            id: seg.id,
+            text: seg.text,
+            lineIdx: lineObj.lineIdx,
+            globalStart: seg.globalStart,
+            globalEnd: seg.globalEnd
+          });
+        }
+      });
+    });
+    return list;
+  }, [parsedLines]);
+
   // Stop reading when leaving or changing language
   useEffect(() => {
     stopSpeech();
@@ -153,17 +173,16 @@ export default function PreambleSection({ setMascotData }: PreambleSectionProps)
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
+    if (visualTimerRef.current) {
+      clearTimeout(visualTimerRef.current);
+      visualTimerRef.current = null;
+    }
     setIsPlaying(false);
     setCurrentLineIndex(null);
     setActiveCharIndex(null);
   };
 
   const startSpeech = () => {
-    if (!window.speechSynthesis) {
-      alert("आपके ब्राउज़र में स्पीच सिंथेसिस सपोर्ट उपलब्ध नहीं है।");
-      return;
-    }
-
     stopSpeech();
     setIsPlaying(true);
 
@@ -171,115 +190,126 @@ export default function PreambleSection({ setMascotData }: PreambleSectionProps)
     const fullText = preamble.content.join(" ");
 
     // Setup speech synthesis with support for multiple languages
-    const utterance = new SpeechSynthesisUtterance(fullText);
-    utteranceRef.current = utterance;
-    
-    // Choose voice based on language code
-    utterance.lang = preamble.voiceCode;
-    utterance.rate = speechSpeed;
+    if (window.speechSynthesis) {
+      try {
+        const utterance = new SpeechSynthesisUtterance(fullText);
+        utteranceRef.current = utterance;
+        
+        // Choose voice based on language code
+        utterance.lang = preamble.voiceCode;
+        utterance.rate = speechSpeed;
 
-    // Direct language voice bindings
-    const voices = window.speechSynthesis.getVoices();
-    let selectedVoice = null;
+        // Direct language voice bindings
+        const voices = window.speechSynthesis.getVoices();
+        let selectedVoice = null;
 
-    if (selectedLang === "english") {
-      selectedVoice = voices.find(v => v.lang.startsWith("en-IN") || v.lang.startsWith("en-GB") || v.lang.startsWith("en-US"));
-    } else if (selectedLang === "urdu") {
-      selectedVoice = voices.find(v => v.lang.startsWith("ur") || v.lang.startsWith("hi-IN"));
-    } else { // hindi and sanskrit
-      selectedVoice = voices.find(v => v.lang.startsWith("hi-IN"));
-    }
-
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
-
-    utterance.onstart = () => {
-      setMascotData({
-        mood: "speaking",
-        text: `मैं अभी संविधान की उद्देशिका को ${preamble.lang} में पढ़ रहा हूँ। ध्यानपूर्वक प्रत्येक शब्द की शक्ति को समझें!`
-      });
-      setCurrentLineIndex(0);
-      setActiveCharIndex(0);
-    };
-
-    utterance.onboundary = (event) => {
-      const charIdx = event.charIndex ?? 0;
-      setActiveCharIndex(charIdx);
-
-      // Find which line of content contains this active character index
-      let detectedLineIdx = 0;
-      let cumulativeSum = 0;
-      for (let i = 0; i < preamble.content.length; i++) {
-        const lineLen = preamble.content[i].length;
-        if (charIdx >= cumulativeSum && charIdx <= cumulativeSum + lineLen) {
-          detectedLineIdx = i;
-          break;
+        if (selectedLang === "english") {
+          selectedVoice = voices.find(v => v.lang.startsWith("en-IN") || v.lang.startsWith("en-GB") || v.lang.startsWith("en-US"));
+        } else if (selectedLang === "urdu") {
+          selectedVoice = voices.find(v => v.lang.startsWith("ur") || v.lang.startsWith("hi-IN"));
+        } else { // hindi and sanskrit
+          selectedVoice = voices.find(v => v.lang.startsWith("hi-IN"));
         }
-        cumulativeSum += lineLen + 1; // +1 for the joining space
+
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
+
+        utterance.onend = () => {
+          // Handled by our timer
+        };
+        utterance.onerror = () => {
+          // Handled by our timer
+        };
+
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn("SpeechSynthesis error:", err);
       }
-      setCurrentLineIndex(detectedLineIdx);
+    }
+
+    setMascotData({
+      mood: "speaking",
+      text: `मैं अभी संविधान की उद्देशिका को ${preamble.lang} में पढ़ रहा हूँ। ध्यानपूर्वक प्रत्येक शब्द की शक्ति को समझें!`
+    });
+
+    // Elegant and 100% reliable progressive visual word highlight loop
+    let wordIdx = 0;
+    const highlightNextWord = () => {
+      if (wordIdx >= allWordSegments.length) {
+        stopSpeech();
+        setMascotData({
+          mood: "happy",
+          text: `शानदार! आपने उद्देशिका सुन ली। चलो इस पावन संदेश को अपने जीवन में अपनाएं। 🌟`
+        });
+        return;
+      }
+
+      const currentWord = allWordSegments[wordIdx];
+      setCurrentLineIndex(currentWord.lineIdx);
+      setActiveCharIndex(currentWord.globalStart);
+
+      const isSanskritOrHindi = selectedLang === "hindi" || selectedLang === "sanskrit";
+      const charFactor = isSanskritOrHindi ? 165 : 115;
+      const calculatedMs = currentWord.text.length * charFactor;
+      const rateFactor = 1 / speechSpeed;
+      const ms = Math.max(340, Math.min(1300, calculatedMs * rateFactor));
+
+      wordIdx++;
+      visualTimerRef.current = setTimeout(highlightNextWord, ms);
     };
 
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setCurrentLineIndex(null);
-      setActiveCharIndex(null);
-      setMascotData({
-        mood: "happy",
-        text: `शानदार! आपने उद्देशिका सुन ली। चलो इस पावन संदेश को अपने जीवन में अपनाएं। 🌟`
-      });
-    };
-
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setCurrentLineIndex(null);
-      setActiveCharIndex(null);
-    };
-
-    window.speechSynthesis.speak(utterance);
+    highlightNextWord();
   };
 
   const handleReadSingleLine = (lineText: string, idx: number) => {
-    if (!window.speechSynthesis) return;
     stopSpeech();
     setIsPlaying(true);
     setCurrentLineIndex(idx);
 
     const preamble = PREAMBLES[selectedLang];
-    const utterance = new SpeechSynthesisUtterance(lineText);
-    utteranceRef.current = utterance;
-    utterance.lang = preamble.voiceCode;
-    utterance.rate = speechSpeed;
 
-    const voices = window.speechSynthesis.getVoices();
-    let selectedVoice = voices.find(v => v.lang.startsWith(preamble.voiceCode));
-    if (selectedVoice) utterance.voice = selectedVoice;
+    if (window.speechSynthesis) {
+      try {
+        const utterance = new SpeechSynthesisUtterance(lineText);
+        utteranceRef.current = utterance;
+        utterance.lang = preamble.voiceCode;
+        utterance.rate = speechSpeed;
 
-    // Calculate line's global start index offset
-    let lineGlobalOffset = 0;
-    for (let i = 0; i < idx; i++) {
-      lineGlobalOffset += preamble.content[i].length + 1;
+        const voices = window.speechSynthesis.getVoices();
+        let selectedVoice = voices.find(v => v.lang.startsWith(preamble.voiceCode));
+        if (selectedVoice) utterance.voice = selectedVoice;
+
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn("SpeechSynthesis error:", err);
+      }
     }
 
-    utterance.onboundary = (event) => {
-      const charIdx = event.charIndex ?? 0;
-      setActiveCharIndex(lineGlobalOffset + charIdx);
+    const lineObj = parsedLines[idx];
+    const lineWords = lineObj.segments.filter(s => !s.isSpace && s.text.trim().length > 0);
+    let wordIdx = 0;
+
+    const highlightNextLineWord = () => {
+      if (wordIdx >= lineWords.length) {
+        stopSpeech();
+        return;
+      }
+
+      const currentWord = lineWords[wordIdx];
+      setActiveCharIndex(currentWord.globalStart);
+
+      const isSanskritOrHindi = selectedLang === "hindi" || selectedLang === "sanskrit";
+      const charFactor = isSanskritOrHindi ? 165 : 115;
+      const calculatedMs = currentWord.text.length * charFactor;
+      const rateFactor = 1 / speechSpeed;
+      const ms = Math.max(340, Math.min(1300, calculatedMs * rateFactor));
+
+      wordIdx++;
+      visualTimerRef.current = setTimeout(highlightNextLineWord, ms);
     };
 
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setCurrentLineIndex(null);
-      setActiveCharIndex(null);
-    };
-
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setCurrentLineIndex(null);
-      setActiveCharIndex(null);
-    };
-
-    window.speechSynthesis.speak(utterance);
+    highlightNextLineWord();
   };
 
   return (
@@ -355,19 +385,21 @@ export default function PreambleSection({ setMascotData }: PreambleSectionProps)
             <div className="flex flex-col gap-2">
               {isPlaying ? (
                 <button
+                  id="stop-preamble-btn"
                   onClick={stopSpeech}
                   className="w-full bg-rose-500 hover:bg-rose-600 text-white font-black text-xs py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 border-b-4 border-rose-700 cursor-pointer"
                 >
                   <Square className="w-4 h-4 fill-white" />
-                  <span>आवाज बंद करें (Stop Video/Audio)</span>
+                  <span>Stop Preamble Audio / बंद करें</span>
                 </button>
               ) : (
                 <button
+                  id="play-preamble-btn"
                   onClick={startSpeech}
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 border-b-4 border-emerald-700 cursor-pointer animate-bounce"
+                  className="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-600 hover:opacity-95 text-white font-black text-xs py-4 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 border-b-4 border-emerald-700 cursor-pointer animate-bounce font-sans text-center"
                 >
                   <Play className="w-4 h-4 fill-white animate-pulse" />
-                  <span>उद्देशिका सुनें (Speak Aloud)</span>
+                  <span className="tracking-wide">Play Preamble / उद्देशिका वाचन</span>
                 </button>
               )}
             </div>

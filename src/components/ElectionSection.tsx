@@ -109,6 +109,16 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     return (saved as any) || "card-creation";
   });
 
+  // Tie-breaker states (Section 102, RPA 1951)
+  const [drawnWinnerCandidateId, setDrawnWinnerCandidateId] = useState<number | null>(() => {
+    const saved = localStorage.getItem("samvidhan_election_drawn_winner");
+    return saved ? parseInt(saved, 10) : null;
+  });
+  const [isDrawingLots, setIsDrawingLots] = useState(false);
+  const [tieBreakerResolved, setTieBreakerResolved] = useState(() => {
+    return localStorage.getItem("samvidhan_election_tie_breaker_resolved") === "true";
+  });
+
   // Multi-voter registry
   const [voters, setVoters] = useState<Voter[]>(() => {
     const saved = localStorage.getItem("samvidhan_election_voters");
@@ -194,14 +204,28 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
   const [schoolName, setSchoolName] = useState<string>(() => {
     return localStorage.getItem("samvidhan_election_school_name") || "बाल एकता उच्चतर माध्यमिक विद्यालय";
   });
+  const [districtName, setDistrictName] = useState<string>(() => {
+    return localStorage.getItem("samvidhan_election_district_name") || "जयपुर";
+  });
+  const [blockName, setBlockName] = useState<string>(() => {
+    return localStorage.getItem("samvidhan_election_block_name") || "सांगानेर";
+  });
 
   // Sync state with storage
   useEffect(() => {
     localStorage.setItem("samvidhan_election_school_name", schoolName);
+    localStorage.setItem("samvidhan_election_district_name", districtName);
+    localStorage.setItem("samvidhan_election_block_name", blockName);
     localStorage.setItem("samvidhan_election_step", step);
     localStorage.setItem("samvidhan_election_voters", JSON.stringify(voters));
     localStorage.setItem("samvidhan_election_candidates", JSON.stringify(candidates));
     localStorage.setItem("samvidhan_election_candidates_locked", candidatesLocked ? "true" : "false");
+    localStorage.setItem("samvidhan_election_tie_breaker_resolved", tieBreakerResolved ? "true" : "false");
+    if (drawnWinnerCandidateId !== null) {
+      localStorage.setItem("samvidhan_election_drawn_winner", drawnWinnerCandidateId.toString());
+    } else {
+      localStorage.removeItem("samvidhan_election_drawn_winner");
+    }
     if (activeVoterId) {
       localStorage.setItem("samvidhan_election_active_voter_id", activeVoterId);
     } else {
@@ -209,8 +233,45 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     }
     if (step === "winner") {
       localStorage.setItem("samvidhan_election_completed", "true");
+      window.dispatchEvent(new Event("storage"));
     }
-  }, [step, voters, candidates, activeVoterId, candidatesLocked]);
+  }, [step, voters, candidates, activeVoterId, candidatesLocked, tieBreakerResolved, drawnWinnerCandidateId, schoolName, districtName, blockName]);
+
+  // Record school with district & block in the global registered schools registry
+  useEffect(() => {
+    if (schoolName.trim()) {
+      const savedSchoolsRaw = localStorage.getItem("samvidhan_registered_schools");
+      let list: Array<{ schoolName: string; districtName: string; blockName: string; timestamp: string; votersCount: number }> = [];
+      if (savedSchoolsRaw) {
+        try {
+          list = JSON.parse(savedSchoolsRaw);
+        } catch (e) {
+          list = [];
+        }
+      }
+      if (!Array.isArray(list)) list = [];
+
+      const targetIndex = list.findIndex(
+        s => s.schoolName.trim().toLowerCase() === schoolName.trim().toLowerCase()
+      );
+
+      const newEntry = {
+        schoolName: schoolName.trim(),
+        districtName: (districtName || "जयपुर").trim(),
+        blockName: (blockName || "सांगानेर").trim(),
+        timestamp: list[targetIndex]?.timestamp || new Date().toISOString(),
+        votersCount: voters.length
+      };
+
+      if (targetIndex >= 0) {
+        list[targetIndex] = newEntry;
+      } else {
+        list.push(newEntry);
+      }
+      localStorage.setItem("samvidhan_registered_schools", JSON.stringify(list));
+      window.dispatchEvent(new Event("storage"));
+    }
+  }, [schoolName, districtName, blockName, voters.length]);
 
   // Sync mascot advice
   useEffect(() => {
@@ -520,6 +581,42 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     return Math.round((totalVotedCount / voters.length) * 100);
   };
 
+  // Find leading candidates and check for ties for first place
+  const leadingCandidates = useMemo(() => {
+    if (candidates.length === 0) return [];
+    const maxVotes = Math.max(...candidates.map(c => c.votes));
+    if (maxVotes === 0) return [];
+    return candidates.filter(c => c.votes === maxVotes);
+  }, [candidates]);
+
+  const hasTie = useMemo(() => {
+    return leadingCandidates.length > 1;
+  }, [leadingCandidates]);
+
+  const handleDrawOfLots = (explicitChosenId?: number) => {
+    setIsDrawingLots(true);
+    playSoundAtFrequency(450, 0.4, "triangle");
+
+    setTimeout(() => {
+      // Choose the selected candidate or a random tied candidate
+      const selectedId = explicitChosenId !== undefined 
+        ? explicitChosenId 
+        : leadingCandidates[Math.floor(Math.random() * leadingCandidates.length)].id;
+
+      setDrawnWinnerCandidateId(selectedId);
+      setIsDrawingLots(false);
+      playSoundAtFrequency(880, 0.5, "sine");
+      
+      // Award the +1 vote as per RPA Section 102
+      setCandidates(prev => prev.map(c => {
+        if (c.id === selectedId) {
+          return { ...c, votes: c.votes + 1 };
+        }
+        return c;
+      }));
+    }, 1500);
+  };
+
   // Full reset wipes everything
   const resetEntireElectionSystem = () => {
     setVoters([]);
@@ -530,6 +627,9 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     setCountingIndex(-1);
     setClassroomTally({});
     setSwingVotes(0);
+    setDrawnWinnerCandidateId(null);
+    setTieBreakerResolved(false);
+    setIsDrawingLots(false);
     
     // Clear Local Storage
     localStorage.removeItem("samvidhan_election_step");
@@ -537,6 +637,8 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     localStorage.removeItem("samvidhan_election_candidates");
     localStorage.removeItem("samvidhan_election_active_voter_id");
     localStorage.removeItem("samvidhan_election_completed");
+    localStorage.removeItem("samvidhan_election_drawn_winner");
+    localStorage.removeItem("samvidhan_election_tie_breaker_resolved");
     playSoundAtFrequency(400, 0.3);
   };
 
@@ -550,7 +652,12 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
     setCountingIndex(-1);
     setClassroomTally({});
     setSwingVotes(0);
+    setDrawnWinnerCandidateId(null);
+    setTieBreakerResolved(false);
+    setIsDrawingLots(false);
     localStorage.removeItem("samvidhan_election_completed");
+    localStorage.removeItem("samvidhan_election_drawn_winner");
+    localStorage.removeItem("samvidhan_election_tie_breaker_resolved");
     playSoundAtFrequency(550, 0.2);
   };
 
@@ -796,25 +903,51 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
         {step === "card-creation" && (
           <div className="space-y-6">
 
-            {/* SCHOOL NAME SETUP CARD */}
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-200 rounded-[24px] p-5 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex gap-3 items-center">
+            {/* SCHOOL, DISTRICT & BLOCK SETUP CARD */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-200 rounded-[28px] p-5 space-y-4">
+              <div className="flex gap-3 items-center border-b border-orange-250 pb-3">
                 <span className="text-3xl">🏫</span>
                 <div className="text-left font-sans">
-                  <h4 className="text-sm font-black text-slate-800">अपने विद्यालय का नाम दर्ज करें (Edit School Name):</h4>
+                  <h4 className="text-sm font-black text-slate-800">भौगोलिक एवं विद्यालय विवरण (District, Block & School Details):</h4>
                   <p className="text-[10px] text-slate-500 font-bold leading-normal">
-                    यह नाम वोटर कार्ड, घोषणापत्र और अंतिम समग्र चुनाव रिपोर्ट (PDF) में प्रिंट होकर आएगा!
+                    यह जिला, ब्लॉक और विद्यालय का नाम वोटर कार्ड, घोषणापत्र और अंतिम समग्र चुनाव रिपोर्ट (PDF) में प्रिंट होकर आएगा!
                   </p>
                 </div>
               </div>
-              <div className="w-full md:w-auto flex-1 max-w-sm">
-                <input
-                  type="text"
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                  placeholder="विद्यालय का नाम यहाँ लिखें..."
-                  className="w-full text-xs font-black p-3 border-2 border-orange-200 rounded-xl bg-white focus:border-orange-500 focus:outline-none shadow-xs text-slate-800"
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10.5px] font-black text-slate-600 block pl-1">🏫 विद्यालय का नाम (School Name):</label>
+                  <input
+                    type="text"
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    placeholder="विद्यालय का नाम यहाँ लिखें..."
+                    className="w-full text-xs font-black p-3 border-2 border-orange-200 rounded-xl bg-white focus:border-orange-500 focus:outline-none shadow-xs text-slate-800"
+                  />
+                </div>
+
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10.5px] font-black text-slate-600 block pl-1">🧱 ब्लॉक का नाम (Block Name):</label>
+                  <input
+                    type="text"
+                    value={blockName}
+                    onChange={(e) => setBlockName(e.target.value)}
+                    placeholder="जैसे: सांगानेर, बड़गड़, नगर..."
+                    className="w-full text-xs font-black p-3 border-2 border-orange-200 rounded-xl bg-white focus:border-orange-500 focus:outline-none shadow-xs text-slate-800"
+                  />
+                </div>
+
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10.5px] font-black text-slate-600 block pl-1">📍 जिला का नाम (District Name):</label>
+                  <input
+                    type="text"
+                    value={districtName}
+                    onChange={(e) => setDistrictName(e.target.value)}
+                    placeholder="जैसे: जयपुर, पटना, शिमला..."
+                    className="w-full text-xs font-black p-3 border-2 border-orange-200 rounded-xl bg-white focus:border-orange-500 focus:outline-none shadow-xs text-slate-800"
+                  />
+                </div>
               </div>
             </div>
             
@@ -1979,13 +2112,168 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                   </div>
                 )}
 
-                {countingStep === "completed" && (
-                  <button
-                    onClick={() => setStep("winner")}
-                    className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-black text-xs rounded-xl shadow-lg transition animate-bounce cursor-pointer flex items-center justify-center gap-1"
-                  >
-                    <span>🏆 विजयी प्रधानमंत्री की घोषणा देखें! ➔</span>
-                  </button>
+                {countingStep === "completed" && hasTie && !tieBreakerResolved ? (
+                  <div className="bg-amber-50 border-4 border-amber-400 p-6 rounded-[30px] space-y-6 text-slate-800 text-left">
+                    <div className="flex gap-3 items-center border-b border-amber-200 pb-3">
+                      <span className="text-4xl animate-pulse">⚖️</span>
+                      <div>
+                        <h4 className="text-base font-black text-amber-950 font-sans">
+                          अद्भुत मुकाबला! मत संख्या बराबर (Equality of Votes - Tie!)
+                        </h4>
+                        <p className="text-[10px] text-amber-600 font-extrabold uppercase">
+                          जनप्रतिनिधित्व अधिनियम, 1951 की धारा 102 (Section 102 RPA, 1951)
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-700 font-bold leading-relaxed">
+                      लोकसभा चुनाव नियमों के अनुसार, जब शीर्ष उम्मीदवारों को **समान (बराबर) वोट** प्राप्त होते हैं, तो चुनाव अधिकारी <strong>पर्ची डालकर (Draw of Lots/लॉटरी)</strong> फैसला करता है। जिस प्रत्याशी की पर्ची निकलती है, उसे **1 अतिरिक्त वोट** मानकर विजयी घोषित किया जाता है!
+                    </p>
+
+                    <div className="bg-white p-4 rounded-2xl border-2 border-amber-200/60">
+                      <h5 className="text-xs font-black text-amber-900 uppercase block mb-3">
+                        बराबर मत वाले उम्मीदवार (Tied Candidates):
+                      </h5>
+                      <div className="grid grid-cols-2 gap-3">
+                        {leadingCandidates.map(cand => (
+                          <div key={cand.id} className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center gap-2.5">
+                            <span className="text-2xl">{cand.symbol}</span>
+                            <div className="font-sans text-xs">
+                              <p className="font-bold text-slate-900">{cand.name}</p>
+                              <p className="text-[10px] text-slate-500 font-bold">{cand.party} • <strong>{cand.votes} वोट 🗳️</strong></p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Interactive Lot-Drawing UI */}
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl p-5 border-4 border-white shadow-lg space-y-4 text-center">
+                      <div className="space-y-1">
+                        <span className="text-4xl block">🏺🎴</span>
+                        <h4 className="font-black text-sm">डिजिटल पर्ची बॉक्स (Digital Slip Shuffler)</h4>
+                        <p className="text-[10.5px] opacity-90 font-bold">
+                          नीचे दिए गए {leadingCandidates.length} बंद पर्चियों में से किसी एक पर्ची को छूकर चुनें!
+                        </p>
+                      </div>
+
+                      <div className="flex gap-4 justify-center items-center py-2">
+                        {leadingCandidates.map((cand, idx) => {
+                          const isRevealed = drawnWinnerCandidateId !== null;
+                          const isThisWinner = drawnWinnerCandidateId === cand.id;
+                          return (
+                            <motion.button
+                              key={cand.id}
+                              type="button"
+                              onClick={() => {
+                                if (drawnWinnerCandidateId !== null || isDrawingLots) return;
+                                handleDrawOfLots(cand.id);
+                              }}
+                              whileHover={drawnWinnerCandidateId === null ? { scale: 1.05, y: -4 } : {}}
+                              whileTap={drawnWinnerCandidateId === null ? { scale: 0.95 } : {}}
+                              className={`w-28 h-36 rounded-xl relative overflow-hidden transition-all flex flex-col items-center justify-center p-3 select-none ${
+                                isRevealed
+                                  ? isThisWinner
+                                    ? "bg-emerald-600 border-4 border-white shadow-2xl scale-105"
+                                    : "bg-slate-700/50 opacity-40 border-2 border-slate-600 cursor-not-allowed"
+                                  : isDrawingLots
+                                    ? "bg-amber-300 border-2 border-amber-400 rotate-12 cursor-wait"
+                                    : "bg-slate-950 border-3 border-amber-300 hover:border-white shadow-md cursor-pointer"
+                              }`}
+                            >
+                              <AnimatePresence mode="wait">
+                                {isRevealed ? (
+                                  <motion.div
+                                    key="revealed"
+                                    initial={{ scale: 0.8, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    className="text-center font-sans space-y-1 text-white"
+                                  >
+                                    <span className="text-3xl block">🎟️</span>
+                                    <p className="font-black text-xs leading-none truncate max-w-24">{cand.name}</p>
+                                    <span className="text-[8px] uppercase tracking-wider block bg-white/20 px-1 py-0.5 rounded font-bold">पर्ची खुली 🎉</span>
+                                  </motion.div>
+                                ) : isDrawingLots ? (
+                                  <motion.div
+                                    key="shuffling"
+                                    animate={{ rotate: [0, 15, -15, 0] }}
+                                    transition={{ repeat: Infinity, duration: 0.5 }}
+                                    className="text-center space-y-1 text-slate-800"
+                                  >
+                                    <span className="text-2xl block">📦</span>
+                                    <p className="text-[10px] font-black leading-none">घूम रहा है...</p>
+                                  </motion.div>
+                                ) : (
+                                  <motion.div
+                                    key="closed"
+                                    className="text-center space-y-1"
+                                  >
+                                    <span className="text-3xl block text-amber-300">📜</span>
+                                    <p className="font-mono text-xs font-black text-[#a7f3d0]">पर्ची #{idx + 1}</p>
+                                    <span className="text-[8px] uppercase tracking-widest block font-extrabold text-slate-400">क्लिक करें</span>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+
+                      {drawnWinnerCandidateId !== null && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-white/10 border border-white/20 p-3 rounded-xl text-xs font-bold leading-relaxed text-left"
+                        >
+                          <p className="text-center font-black text-white text-md mb-1 flex items-center justify-center gap-1.5">
+                            🌟 विजेता घोषित: {candidates.find(c => c.id === drawnWinnerCandidateId)?.name} ({candidates.find(c => c.id === drawnWinnerCandidateId)?.party})
+                          </p>
+                          <p className="text-[10.5px] opacity-90 leading-relaxed text-[#fef08a] font-extrabold text-center">
+                            भारतीय निवारक नियमावली के अनुसार, इस उम्मीदवार को +1 अतिरिक्त निर्णायक वोट प्रदान करके लोकतंत्र का विजेता चुना गया है!
+                          </p>
+                        </motion.div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={resetRepollOnly}
+                        className="flex-1 py-3 px-4 bg-slate-200 hover:bg-slate-300 text-slate-800 font-extrabold rounded-xl text-xs cursor-pointer transition text-center border font-sans"
+                      >
+                        🔄 दोबारा मतदान करें (Re-Poll/Re-vote)
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={drawnWinnerCandidateId === null}
+                        onClick={() => {
+                          setTieBreakerResolved(true);
+                          setStep("winner");
+                        }}
+                        className={`flex-1 py-3 px-4 font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-1 font-sans ${
+                          drawnWinnerCandidateId !== null
+                            ? "bg-green-600 hover:bg-green-700 text-white cursor-pointer animate-pulse"
+                            : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                        }`}
+                      >
+                        <span>🏆 विजयी प्रधानमंत्री की घोषणा देखें! ➔</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  countingStep === "completed" && (
+                    <button
+                      onClick={() => setStep("winner")}
+                      className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-black text-xs rounded-xl shadow-lg transition animate-bounce cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      {tieBreakerResolved ? (
+                        <span>✨ विजयी प्रधानमंत्री उत्सव पर जाएँ! ➔</span>
+                      ) : (
+                        <span>🏆 विजयी प्रधानमंत्री की घोषणा देखें! ➔</span>
+                      )}
+                    </button>
+                  )
                 )}
 
               </div>
@@ -2127,9 +2415,15 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                     
                     {/* Candidate Identity block */}
                     <div className="md:col-span-5 bg-white border-2 border-slate-200 rounded-3xl p-5 shadow flex flex-col justify-between items-center text-center relative overflow-hidden">
-                      <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-3 py-1 font-black text-[10px] uppercase mb-4 tracking-wider select-none">
+                      <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-3 py-1 font-black text-[10px] uppercase mb-2 tracking-wider select-none">
                         निर्वाचित पीएम (Elected PM)
                       </div>
+
+                      {tieBreakerResolved && drawnWinnerCandidateId === mainWinner.id && (
+                        <div className="bg-amber-50 border border-amber-305 text-amber-950 rounded-xl px-2.5 py-1 text-[9.5px] font-black uppercase mb-3 leading-normal select-none shadow-xs text-center border-dashed">
+                          ⚖️ पर्ची प्रणाली (Draw of Lots) विजेता
+                        </div>
+                      )}
 
                       <span className="text-7xl p-5 bg-slate-50 border-2 rounded-[30px] border-slate-200 select-none block hover:scale-105 duration-150 transition">
                         {mainWinner.symbol}
@@ -2528,7 +2822,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                       <div className="text-center space-y-2 pb-5 border-b-4 border-double border-slate-300">
                         <span className="text-4xl block">🏛️</span>
                         <h3 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
-                          {schoolName || "बाल एकता विद्यालय"}
+                          {districtName ? `${districtName} • ` : ""}{blockName ? `ब्लॉक ${blockName} • ` : ""}{schoolName || "बाल एकता विद्यालय"}
                         </h3>
                         <p className="text-xs bg-indigo-50 border border-indigo-150 text-indigo-900 px-3 py-1 font-bold rounded-full w-fit mx-auto mt-1">
                           🗳️ लोकसभा बाल लोकतान्त्रिक चुनाव उत्सव - २०२६ (समग्र चुनाव परिणाम एवं भागीदारी रिपोर्ट)
@@ -2653,7 +2947,9 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                           <div className="w-40 border-t border-slate-300 pt-2 text-xs text-slate-550 font-bold text-slate-500">
                             चुनाव आयुक्त हस्ताक्षर
                           </div>
-                          <div className="text-[10px] text-slate-400 font-extrabold mt-0.5 font-mono">{schoolName}</div>
+                          <div className="text-[10px] text-slate-450 font-extrabold mt-0.5 font-sans">
+                            {districtName ? `${districtName} • ` : ""}{blockName ? `ब्लॉक ${blockName} • ` : ""}{schoolName}
+                          </div>
                         </div>
                         <div className="flex flex-col items-center">
                           <div className="w-40 border-t border-slate-300 pt-2 text-xs text-slate-550 font-bold text-slate-500">
@@ -2680,7 +2976,7 @@ export default function ElectionSection({ setMascotData, incrementScore }: Elect
                           printWindow.document.write(`
                             <html>
                               <head>
-                                <title>अंतिम चुनाव रिपोर्ट - ${schoolName}</title>
+                                <title>अंतिम चुनाव रिपोर्ट - ${districtName ? districtName + " - " : ""}${blockName ? "ब्लॉक " + blockName + " - " : ""}${schoolName}</title>
                                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;700;900&family=Noto+Sans+Devanagari:wght@450;700;900&display=swap" rel="stylesheet" />
                                 <style>
                                   body {

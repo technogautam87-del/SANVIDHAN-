@@ -33,6 +33,19 @@
         "kushagra_social_youtube": { "type": "string" },
         "kushagra_social_portfolio": { "type": "string" }
       }
+    },
+    "SchoolRecord": {
+      "title": "SchoolRecord",
+      "description": "Record of a school participating in the democratic election booth simulation",
+      "type": "object",
+      "properties": {
+        "schoolName": { "type": "string" },
+        "districtName": { "type": "string" },
+        "blockName": { "type": "string" },
+        "votersCount": { "type": "number" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["schoolName", "districtName", "blockName", "votersCount", "timestamp"]
     }
   },
   "firestore": {
@@ -43,6 +56,10 @@
     "/settings/developers": {
       "schema": "DevelopersProfile",
       "description": "Stores contact links and photos of Gautam & Kushagra"
+    },
+    "/schools/{schoolId}": {
+      "schema": "SchoolRecord",
+      "description": "Stores school election booth records including school name, location, and voter counts"
     }
   }
 }

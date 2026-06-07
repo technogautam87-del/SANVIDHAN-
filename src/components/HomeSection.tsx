@@ -569,6 +569,185 @@ export default function HomeSection({ onNavigate, setMascotData }: HomeSectionPr
         </div>
       </div>
 
+      {/* 🏆 DIGITAL MEDAL & BADGE GALLERY SECTION 🏆 */}
+      {(() => {
+        const badgesConfig = [
+          {
+            id: "history",
+            name: "इतिहास अन्वेषक पदक",
+            englishName: "History Investigator Badge",
+            emoji: "⏳",
+            desc: "इतिहास की सभी ३ पहेलियाँ सुलझाईं तथा प्रारूप समिति का ज्ञान अर्जित किया।",
+            unlocked: historyPct === 100,
+            color: "from-amber-400 via-orange-500 to-amber-600",
+            accent: "bg-orange-500"
+          },
+          {
+            id: "rights",
+            name: "अधिकार रक्षक पदक",
+            englishName: "Guardian of Rights Medal",
+            emoji: "🛡️",
+            desc: "सभी ६ मौलिक अधिकार सिमुलेशन पूर्ण किए व समाज में समानता के अधिकार को समझा।",
+            unlocked: rightsPct === 100,
+            color: "from-pink-400 via-rose-500 to-pink-600",
+            accent: "bg-pink-500"
+          },
+          {
+            id: "duties",
+            name: "कर्तव्यनिष्ठ नागरिक पदक",
+            englishName: "Dutybound Citizen Medal",
+            emoji: "🌱",
+            desc: "स्वच्छता व राष्ट्रीय सम्मान जैसे सभी ६ कर्तव्य परिस्थितियों का सही निर्णय लिया।",
+            unlocked: dutiesPct === 100,
+            color: "from-yellow-400 via-emerald-500 to-green-600",
+            accent: "bg-green-500"
+          },
+          {
+            id: "election",
+            name: "सक्रिय जागरूक मतदाता पदक",
+            englishName: "Aware Active Voter Medal",
+            emoji: "🗳️",
+            desc: "वोटर आईडी बनाकर सुरक्षित ईवीएम मतदान और मतगणना का प्रत्यक्ष सिमुलेशन पूर्ण किया।",
+            unlocked: electionPct === 100,
+            color: "from-purple-400 via-indigo-500 to-purple-600",
+            accent: "bg-purple-500"
+          },
+          {
+            id: "quiz",
+            name: "संविधान सुपरस्टार पदक",
+            englishName: "Constitution Quiz Superstar",
+            emoji: "👑",
+            desc: "क्विज़ में ८ या उससे अधिक सही उत्तर देकर उच्चतम ज्ञान स्तर प्राप्त किया।",
+            unlocked: quizHighScore >= 8,
+            color: "from-yellow-300 via-amber-400 to-orange-500",
+            accent: "bg-amber-500"
+          },
+          {
+            id: "sign",
+            name: "समरसता दूत सम्मान पदक",
+            englishName: "Harmony Ambassador Badge",
+            emoji: "🤝",
+            desc: "सांकेतिक भाषा के सभी ६ मूक-बधिर साक्षरता पाठों को कुशलतापूर्वक पूर्ण किया।",
+            unlocked: signPct === 100,
+            color: "from-teal-400 via-cyan-500 to-teal-600",
+            accent: "bg-teal-500"
+          }
+        ];
+
+        const unlockedCount = badgesConfig.filter(b => b.unlocked).length;
+
+        return (
+          <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 border-4 border-amber-400 rounded-[36px] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl text-left">
+            {/* Top tricolor neon bar */}
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-orange-500 via-white to-emerald-600"></div>
+            {/* Glowing aurorals */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-400/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-5 mb-6">
+              <div>
+                <h3 className="text-xl font-black text-amber-300 flex items-center gap-2.5">
+                  <span className="text-2xl animate-bounce">🏆</span>
+                  <span>डिजिटल मेडल व बैज गैलरी (Digital Badge Medal Gallery)</span>
+                </h3>
+                <p className="text-xs text-slate-300 font-bold mt-1.5 leading-relaxed">
+                  उत्कृष्ट प्रदर्शन करके सभी ६ विषयों के सम्मान पदक अनलॉक करें! अनलॉक होने पर शानदार उत्सव सिमुलेशन दिखाई देगा।
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => onNavigate("badges")}
+                  className="bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 text-xs font-black px-4 py-2.5 rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>विस्तृत गैलरी व प्रमाणपत्र</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+
+                <div className="bg-slate-950/80 px-4.5 py-2 border border-amber-400/30 rounded-2xl flex items-center gap-2.5 text-xs font-black text-amber-400 shadow-inner">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider">मेडल अर्जित:</span>
+                  <span className="bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 text-sm px-3.5 py-1 rounded-full font-black">
+                    {unlockedCount} / 6
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Badges Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-5">
+              {badgesConfig.map((badge) => (
+                <div
+                  key={badge.id}
+                  className={`relative rounded-3xl p-5 flex flex-col items-center justify-between text-center transition-all duration-300 border-2 select-none ${
+                    badge.unlocked
+                      ? "bg-slate-950/85 border-amber-400 shadow-[0_8px_25px_-5px_rgba(245,158,11,0.25)] hover:scale-105 active:scale-95 cursor-pointer"
+                      : "bg-slate-950/30 border-slate-900/60 opacity-50"
+                  }`}
+                  onClick={() => {
+                    if (badge.unlocked) {
+                      try {
+                        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+                        if (AudioCtx) {
+                          const ctx = new AudioCtx();
+                          const osc = ctx.createOscillator();
+                          const gain = ctx.createGain();
+                          osc.connect(gain);
+                          gain.connect(ctx.destination);
+                          osc.frequency.setValueAtTime(880, ctx.currentTime);
+                          gain.gain.setValueAtTime(0.015, ctx.currentTime);
+                          osc.start();
+                          osc.stop(ctx.currentTime + 0.12);
+                        }
+                      } catch {}
+                      alert(`🏅 ${badge.name}\n\n"${badge.desc}"`);
+                    }
+                  }}
+                >
+                  {/* Badge Visual Ring */}
+                  <div className="relative mb-4 flex items-center justify-center">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center p-1.5 ${
+                      badge.unlocked
+                        ? `bg-gradient-to-tr ${badge.color} border-2 border-white shadow-lg`
+                        : "bg-slate-900 border-2 border-slate-800"
+                    }`}>
+                      <div className="w-full h-full rounded-full bg-slate-950/90 flex items-center justify-center shadow-inner">
+                        <span className={`text-[28px] ${badge.unlocked ? "filter drop-shadow-md animate-pulse" : "grayscale opacity-25"}`}>
+                          {badge.unlocked ? badge.emoji : "🔒"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {badge.unlocked && (
+                      <span className="absolute -top-1 -right-1 bg-gradient-to-tr from-emerald-500 to-green-600 text-[9px] text-white w-5 h-5 rounded-full font-black border-2 border-white flex items-center justify-center shadow-md animate-bounce">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Title & Description */}
+                  <div className="space-y-1 w-full">
+                    <h4 className={`text-[11.5px] font-black tracking-tight leading-tight ${badge.unlocked ? "text-slate-100" : "text-slate-500"}`}>
+                      {badge.name}
+                    </h4>
+                    <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide font-mono leading-none">
+                      {badge.englishName}
+                    </p>
+                    <p className={`text-[9px] font-black mt-2 inline-block px-2 py-0.5 rounded-full ${
+                      badge.unlocked
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : "bg-slate-900 text-slate-600 border border-slate-800/60"
+                        }`}>
+                      {badge.unlocked ? "🏆 अर्जित किया!" : "🔓 लॉक है अभी"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Grid of Interactive Zones */}
       <div>
         <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">

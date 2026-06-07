@@ -185,6 +185,7 @@ export default function SignLanguageSection({ setMascotData, incrementScore }: S
     const nextCompleted = [...completedLessons, term.id];
     setCompletedLessons(nextCompleted);
     localStorage.setItem("samvidhan_completed_sign_lessons", JSON.stringify(nextCompleted));
+    window.dispatchEvent(new Event("storage"));
 
     // Increment global scoreboard points
     incrementScore(term.pointsReward);

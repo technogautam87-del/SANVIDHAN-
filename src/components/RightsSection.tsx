@@ -51,6 +51,7 @@ export default function RightsSection({ setMascotData, incrementScore }: RightsS
   // Track and save completed rights in localStorage
   useEffect(() => {
     localStorage.setItem("samvidhan_completed_rights", JSON.stringify(completedRights));
+    window.dispatchEvent(new Event("storage"));
   }, [completedRights]);
 
   // Simulation specific states

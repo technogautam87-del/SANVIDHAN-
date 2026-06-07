@@ -63,6 +63,7 @@ export default function DutiesSection({ setMascotData, incrementScore }: DutiesS
   useEffect(() => {
     localStorage.setItem("samvidhan_duties_classifications", JSON.stringify(classifications));
     localStorage.setItem("samvidhan_duties_evaluated", JSON.stringify(evaluatedItems));
+    window.dispatchEvent(new Event("storage"));
   }, [classifications, evaluatedItems]);
 
   useEffect(() => {

@@ -130,6 +130,7 @@ export default function QuizSection({ setMascotData, incrementScore, gameScore }
       const savedHighScore = parseInt(localStorage.getItem("samvidhan_quiz_high_score") || "0", 10);
       if (votedCorrectlyCount > savedHighScore) {
         localStorage.setItem("samvidhan_quiz_high_score", votedCorrectlyCount.toString());
+        window.dispatchEvent(new Event("storage"));
       }
     }
   }, [quizFinished, votedCorrectlyCount]);

@@ -155,7 +155,22 @@ export default function HistorySection({ setMascotData }: HistorySectionProps) {
   const [puzzleIndex, setPuzzleIndex] = useState(0);
   const [selectedPuzzleOpt, setSelectedPuzzleOpt] = useState<number | null>(null);
   const [revealPuzzle, setRevealPuzzle] = useState(false);
-  const [solvedPuzzles, setSolvedPuzzles] = useState<boolean[]>(new Array(SPOT_PUZZLES.length).fill(false));
+  const [solvedPuzzles, setSolvedPuzzles] = useState<boolean[]>(() => {
+    const saved = localStorage.getItem("samvidhan_history_puzzles");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return new Array(SPOT_PUZZLES.length).fill(false);
+  });
+
+  // Preserve history puzzle progress in localStorage
+  useEffect(() => {
+    localStorage.setItem("samvidhan_history_puzzles", JSON.stringify(solvedPuzzles));
+    window.dispatchEvent(new Event("storage"));
+  }, [solvedPuzzles]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const playProgressRef = useRef<number>(0);

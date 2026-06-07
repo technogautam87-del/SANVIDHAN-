@@ -1,12 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Default-deny catch-all
+    
+    // ==========================================
+    // 1. GLOBAL SAFETY NET (Default Deny Catch-all)
+    // ==========================================
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // 2. Global Safety and Identity Helpers
+    // ==========================================
+    // 2. CRYPTOGRAPHIC IDENTITY & COMPLIANCE HELPERS
+    // ==========================================
     function isSignedIn() {
       return request.auth != null;
     }
@@ -14,13 +19,89 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && 
              request.auth.token.email_verified == true && 
-             request.auth.token.email == 'technogautam87@gmail.com';
+             (request.auth.token.email == 'technogautam87@gmail.com' ||
+              request.auth.token.email == 'kushagragaur87@gmail.com');
     }
 
-    // 3. Settings Collection rules
-    match /settings/{settingId} {
-      allow read: if true; 
-      allow write: if isAdmin();
+    function isValidId(id) {
+      return id is string && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // ==========================================
+    // 3. VALIDATION SYSTEM (The Anti-Update-Gaps)
+    // ==========================================
+    
+    // Articles Settings Document Shape Validator
+    function isValidArticlesSettings(data) {
+      return data.keys().size() <= 4 &&
+             (!('customUrls' in data) || data.customUrls is map) &&
+             (!('clickCounts' in data) || data.clickCounts is map);
+    }
+
+    // Developers Profile Document Shape Validator
+    function isValidDevelopersSettings(data) {
+      return data.keys().size() <= 16 &&
+             (!('gautam_photo' in data) || (data.gautam_photo is string && data.gautam_photo.size() <= 2048)) &&
+             (!('gautam_email' in data) || (data.gautam_email is string && data.gautam_email.size() <= 256)) &&
+             (!('gautam_social_github' in data) || (data.gautam_social_github is string && data.gautam_social_github.size() <= 2048)) &&
+             (!('gautam_social_linkedin' in data) || (data.gautam_social_linkedin is string && data.gautam_social_linkedin.size() <= 2048)) &&
+             (!('gautam_social_youtube' in data) || (data.gautam_social_youtube is string && data.gautam_social_youtube.size() <= 2048)) &&
+             (!('gautam_social_portfolio' in data) || (data.gautam_social_portfolio is string && data.gautam_social_portfolio.size() <= 2048)) &&
+             (!('kushagra_photo' in data) || (data.kushagra_photo is string && data.kushagra_photo.size() <= 2048)) &&
+             (!('kushagra_email' in data) || (data.kushagra_email is string && data.kushagra_email.size() <= 256)) &&
+             (!('kushagra_social_github' in data) || (data.kushagra_social_github is string && data.kushagra_social_github.size() <= 2048)) &&
+             (!('kushagra_social_linkedin' in data) || (data.kushagra_social_linkedin is string && data.kushagra_social_linkedin.size() <= 2048)) &&
+             (!('kushagra_social_youtube' in data) || (data.kushagra_social_youtube is string && data.kushagra_social_youtube.size() <= 2048)) &&
+             (!('kushagra_social_portfolio' in data) || (data.kushagra_social_portfolio is string && data.kushagra_social_portfolio.size() <= 2048));
+    }
+
+    // Sign Videos Settings Document Shape Validator
+    function isValidSignVideosSettings(data) {
+      return data is map;
+    }
+
+    // School Record Validation Blueprint
+    function isValidSchool(data) {
+      return data.keys().hasAll(['schoolName', 'districtName', 'blockName', 'votersCount', 'timestamp']) &&
+             data.keys().size() == 5 &&
+             data.schoolName is string && data.schoolName.size() >= 2 && data.schoolName.size() <= 150 &&
+             data.districtName is string && data.districtName.size() >= 2 && data.districtName.size() <= 100 &&
+             data.blockName is string && data.blockName.size() >= 2 && data.blockName.size() <= 100 &&
+             (data.votersCount is int || data.votersCount is float) && data.votersCount >= 0 && data.votersCount <= 100000 &&
+             data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    // ==========================================
+    // 4. COLLECTION HOOKS & ATTRIBUTE CONTROLS
+    // ==========================================
+    
+    // Global App Configuration (Read: Public, Write: Cryptographically Signed Admins)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() && 
+                      isValidId(settingId) && 
+                      (
+                        (settingId == 'articles' && isValidArticlesSettings(incoming())) ||
+                        (settingId == 'developers' && isValidDevelopersSettings(incoming())) ||
+                        (settingId == 'sign_videos' && isValidSignVideosSettings(incoming())) ||
+                        (! (settingId in ['articles', 'developers', 'sign_videos']))
+                      );
+    }
+
+    // School Participation Registry (Read: Public, Create/Write: Strict schema verification, Deletion: Admin strictly)
+    match /schools/{schoolId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidId(schoolId) && isValidSchool(incoming());
+      allow update, delete: if isAdmin() && isValidId(schoolId);
+    }
+
   }
 }

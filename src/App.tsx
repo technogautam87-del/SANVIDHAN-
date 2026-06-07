@@ -18,9 +18,69 @@ import DevelopersSection from "./components/DevelopersSection";
 import ArticlesSection from "./components/ArticlesSection";
 import SignLanguageSection from "./components/SignLanguageSection";
 import AdminPanelSection from "./components/AdminPanelSection";
+import BadgesSection from "./components/BadgesSection";
 import { MascotMood } from "./types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "./lib/firebase";
+import BadgeCelebrationModal, { BadgeInfo } from "./components/BadgeCelebrationModal";
+import LegalDictionary from "./components/LegalDictionary";
+
+export const BADGES: BadgeInfo[] = [
+  {
+    id: "history",
+    name: "इतिहास अन्वेषक पदक",
+    englishName: "History Investigator Badge",
+    emoji: "⏳",
+    desc: "भारत के गौरवशाली इतिहास तथा प्रारूप समिति की सभी पहेलियों को शत-प्रतिशत सही सुलझाने वाले प्रतिभाशाली विद्यार्थी को यह सम्मान दिया जाता है।",
+    color: "from-amber-400 via-orange-500 to-amber-600",
+    accent: "bg-orange-500"
+  },
+  {
+    id: "rights",
+    name: "अधिकार रक्षक पदक",
+    englishName: "Guardian of Rights Medal",
+    emoji: "🛡️",
+    desc: "समानता, स्वतंत्रता और शिक्षा के सभी ६ मौलिक अधिकार सिमुलेशन खेलों को समझदारी से खेलकर समाज में अधिकारों की रक्षा करने वाले रक्षक को यह मेडल मिलता है।",
+    color: "from-pink-400 via-rose-500 to-pink-600",
+    accent: "bg-pink-505"
+  },
+  {
+    id: "duties",
+    name: "कर्तव्यनिष्ठ नागरिक पदक",
+    englishName: "Dutybound Citizen Medal",
+    emoji: "🌱",
+    desc: "राष्ट्रगान का सम्मान, तिरंगे की शान, और स्वच्छता जैसे ११ मौलिक कर्तव्यों व सुसंस्कृत आदतों की सही पहचान करने वाले देशभक्त बाल नागरिक को यह पदक मिलता है।",
+    color: "from-yellow-400 via-emerald-500 to-green-600",
+    accent: "bg-emerald-500"
+  },
+  {
+    id: "election",
+    name: "सक्रिय जागरूक मतदाता पदक",
+    englishName: "Aware Active Voter Medal",
+    emoji: "🗳️",
+    desc: "सफलतापूर्वक अपना वोटर आईडी कार्ड बनाने, सुरक्षित ईवीएम मतदान करने तथा मतगणना और लोकतांत्रिक परिणामों का प्रत्यक्ष सिमुलेशन पूर्ण करने हेतु मिलता है।",
+    color: "from-purple-400 via-indigo-500 to-purple-600",
+    accent: "bg-purple-500"
+  },
+  {
+    id: "quiz",
+    name: "संविधान सुपरस्टार पदक",
+    englishName: "Constitution Quiz Superstar Badge",
+    emoji: "👑",
+    desc: "सीखो व खेलो क्विज़ में संविधान से संबंधित कठिन प्रश्नों का त्वरित व उच्चतम कौशल के साथ उत्तर (न्यूनतम ८/१२ मार्क्स) देकर सर्वोच्च प्रतिष्ठा हासिल करने पर मिलता है।",
+    color: "from-yellow-300 via-amber-400 to-orange-500",
+    accent: "bg-amber-500"
+  },
+  {
+    id: "sign",
+    name: "समरसता दूत सम्मान पदक",
+    englishName: "Harmony Sign Language Ambassador",
+    emoji: "🤝",
+    desc: "संविधान, भारत, स्वतंत्रता, और लोकतंत्र जैसे भारतीय सांकेतिक भाषा के सभी ६ महत्वपूर्ण मूक-बधिर साक्षरता पाठों को कुशलतापूर्वक पूर्ण करने वाले दूत को समर्पित।",
+    color: "from-teal-400 via-cyan-500 to-teal-600",
+    accent: "bg-teal-500"
+  }
+];
 
 export default function App() {
   const [activeTab, setActiveTabInternal] = useState<string>("home");
@@ -215,6 +275,7 @@ export default function App() {
       localStorage.removeItem("samvidhan_quiz_high_score");
       localStorage.removeItem("samvidhan_features_viewed");
       localStorage.removeItem("samvidhan_history_puzzles");
+      localStorage.removeItem("samvidhan_celebrated_badges");
       setActiveTab("home");
       setMascotData({
         mood: "happy",
@@ -222,6 +283,101 @@ export default function App() {
       });
     }
   };
+
+  // Active state for celebrating badge unlocks
+  const [activeCelebratingBadge, setActiveCelebratingBadge] = useState<BadgeInfo | null>(null);
+
+  // Analyze badge completions in real-time and award accolades
+  useEffect(() => {
+    const handleCheckBadges = () => {
+      // 1. History Investigator Badge
+      let historyDone = false;
+      try {
+        const saved = localStorage.getItem("samvidhan_history_puzzles");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          historyDone = Array.isArray(parsed) && parsed.filter(Boolean).length === 3;
+        }
+      } catch (e) {}
+
+      // 2. Guardian of Rights Medal
+      let rightsDone = false;
+      try {
+        const saved = localStorage.getItem("samvidhan_completed_rights");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          rightsDone = Array.isArray(parsed) && parsed.length === 6;
+        }
+      } catch (e) {}
+
+      // 3. Dutybound Citizen Medal
+      let dutiesDone = false;
+      try {
+        const saved = localStorage.getItem("samvidhan_duties_evaluated");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          dutiesDone = Array.isArray(parsed) && parsed.length === 6;
+        }
+      } catch (e) {}
+
+      // 4. Aware Active Voter Medal
+      const votingDone = localStorage.getItem("samvidhan_election_completed") === "true";
+
+      // 5. Constitution Quiz Superstar Badge
+      const quizScore = parseInt(localStorage.getItem("samvidhan_quiz_high_score") || "0", 10);
+      const quizDone = quizScore >= 8;
+
+      // 6. Harmony Sign Language Ambassador Badge
+      let signDone = false;
+      try {
+        const saved = localStorage.getItem("samvidhan_completed_sign_lessons");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          signDone = Array.isArray(parsed) && parsed.length === 6;
+        }
+      } catch (e) {}
+
+      // Load celebrated badges list
+      let celebrated: string[] = [];
+      try {
+        const saved = localStorage.getItem("samvidhan_celebrated_badges");
+        celebrated = saved ? JSON.parse(saved) : [];
+      } catch (e) {}
+
+      const checkAndAwardBadge = (badgeId: string, isCompleted: boolean) => {
+        if (isCompleted && !celebrated.includes(badgeId)) {
+          celebrated.push(badgeId);
+          localStorage.setItem("samvidhan_celebrated_badges", JSON.stringify(celebrated));
+          
+          // Display the celebratory accolades
+          const currentBadge = BADGES.find((b) => b.id === badgeId);
+          if (currentBadge) {
+            setActiveCelebratingBadge(currentBadge);
+            setScore((prev) => prev + 50); // Give +50 bonus XP reward
+          }
+          return true; // Award one badge per check turn to build suspense
+        }
+        return false;
+      };
+
+      // Check and award badges sequentially
+      if (checkAndAwardBadge("rights", rightsDone)) return;
+      if (checkAndAwardBadge("duties", dutiesDone)) return;
+      if (checkAndAwardBadge("election", votingDone)) return;
+      if (checkAndAwardBadge("quiz", quizDone)) return;
+      if (checkAndAwardBadge("sign", signDone)) return;
+      if (checkAndAwardBadge("history", historyDone)) return;
+    };
+
+    // Initialize checking
+    handleCheckBadges();
+
+    // Attach listener for real-time internal updates
+    window.addEventListener("storage", handleCheckBadges);
+    return () => {
+      window.removeEventListener("storage", handleCheckBadges);
+    };
+  }, []);
 
   const handleToggleVoice = () => {
     setVoiceEnabled(prev => !prev);
@@ -243,6 +399,7 @@ export default function App() {
     { id: "duties", label: "🎉 कर्तव्य बोर्ड", color: "hover:border-yellow-400 text-slate-700 hover:text-yellow-600 font-bold" },
     { id: "election", label: "🗳️ चुनाव बूथ", color: "hover:border-green-400 text-slate-700 hover:text-green-600 font-bold" },
     { id: "quiz", label: "🎯 सीखो व खेलो", color: "hover:border-amber-400 text-slate-700 hover:text-amber-600 font-bold" },
+    { id: "badges", label: "🏆 मेडल गैलरी", color: "hover:border-amber-400 text-slate-700 hover:text-amber-600 font-bold" },
     { id: "developers", label: "💻 डेवलपर्स", color: "hover:border-purple-400 text-slate-700 hover:text-purple-600 font-bold" },
     { id: "admin", label: "🔐 एडमिन पैनल", color: "hover:border-rose-400 text-slate-750 hover:text-rose-600 font-bold" }
   ];
@@ -257,6 +414,7 @@ export default function App() {
       case "duties": return "border-yellow-400 shadow-[0_12px_0_#facc15]";
       case "election": return "border-green-500 shadow-[0_12px_0_#22c55e]";
       case "quiz": return "border-amber-500 shadow-[0_12px_0_#f59e0b]";
+      case "badges": return "border-amber-400 shadow-[0_12px_0_#d97706]";
       case "developers": return "border-purple-500 shadow-[0_12px_0_#a855f7]";
       case "admin": return "border-rose-500 shadow-[0_12px_0_#f43f5e]";
       default: return "border-orange-400 shadow-[0_12px_0_#f97316]";
@@ -401,6 +559,9 @@ export default function App() {
           {activeTab === "quiz" && (
             <QuizSection setMascotData={handleSetMascotData} incrementScore={incrementScore} gameScore={score} />
           )}
+          {activeTab === "badges" && (
+            <BadgesSection onNavigate={handleTabClick} setMascotData={handleSetMascotData} score={score} />
+          )}
           {activeTab === "developers" && (
             <DevelopersSection setMascotData={handleSetMascotData} />
           )}
@@ -482,6 +643,13 @@ export default function App() {
 
         </div>
       </footer>
+
+      <BadgeCelebrationModal
+        isOpen={activeCelebratingBadge !== null}
+        badge={activeCelebratingBadge}
+        onClose={() => setActiveCelebratingBadge(null)}
+      />
+      <LegalDictionary />
     </div>
   );
 }

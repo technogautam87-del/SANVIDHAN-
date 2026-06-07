@@ -32,11 +32,12 @@ import {
   Trash2,
   Edit3,
   Plus,
-  Languages
+  Languages,
+  Video
 } from "lucide-react";
 import { ARTICLES_DATA, ArticleItem } from "./ArticlesSection";
-import { doc, setDoc } from "firebase/firestore";
-import { signInWithPopup, signOut } from "firebase/auth";
+import { doc, setDoc, collection, onSnapshot, query, deleteDoc } from "firebase/firestore";
+import { signInWithPopup, signOut, GoogleAuthProvider } from "firebase/auth";
 import { db, auth, googleProvider } from "../lib/firebase";
 
 interface AdminPanelSectionProps {
@@ -52,7 +53,219 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
 
   // Sub-tab state
-  const [adminSubTab, setAdminSubTab] = useState<"articles" | "developers" | "signlanguage">("articles");
+  const [adminSubTab, setAdminSubTab] = useState<"articles" | "developers" | "signlanguage" | "schools">("articles");
+
+  // Registered schools list
+  const [registeredSchools, setRegisteredSchools] = useState<Array<{ schoolName: string; districtName: string; blockName: string; timestamp: string; votersCount: number }>>([]);
+
+  // Google Drive state
+  const [driveToken, setDriveToken] = useState<string | null>(null);
+  const [driveLoading, setDriveLoading] = useState(false);
+
+  const loadRegisteredSchools = () => {
+    const raw = localStorage.getItem("samvidhan_registered_schools");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed)) {
+          setRegisteredSchools(parsed);
+          return;
+        }
+      } catch (e) {}
+    }
+    // If empty, let's seed with current election school if available
+    const activeSchool = localStorage.getItem("samvidhan_election_school_name") || "बाल एकता उच्चतर माध्यमिक विद्यालय";
+    const activeDistrict = localStorage.getItem("samvidhan_election_district_name") || "जयपुर";
+    const activeBlock = localStorage.getItem("samvidhan_election_block_name") || "सांगानेर";
+    
+    const initialList = [
+      { schoolName: activeSchool, districtName: activeDistrict, blockName: activeBlock, timestamp: new Date().toISOString(), votersCount: 5 },
+      { schoolName: "राजकीय उच्च माध्यमिक विद्यालय, गोविंदपुरा", districtName: "जयपुर", blockName: "सांगानेर", timestamp: new Date(Date.now() - 864 * 100000).toISOString(), votersCount: 15 },
+      { schoolName: "सरस्वती शिशु ज्ञान मंदिर", districtName: "शिमला", blockName: "ठियोग", timestamp: new Date(Date.now() - 1728 * 100000).toISOString(), votersCount: 12 },
+    ];
+    setRegisteredSchools(initialList);
+    localStorage.setItem("samvidhan_registered_schools", JSON.stringify(initialList));
+  };
+
+  useEffect(() => {
+    // Attempt real-time sync with Firestore "schools" collection
+    const q = query(collection(db, "schools"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Array<{ schoolName: string; districtName: string; blockName: string; timestamp: string; votersCount: number }> = [];
+      snapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        list.push({
+          schoolName: data.schoolName || "",
+          districtName: data.districtName || "",
+          blockName: data.blockName || "",
+          timestamp: data.timestamp || new Date().toISOString(),
+          votersCount: typeof data.votersCount === "number" ? data.votersCount : 0
+        });
+      });
+      if (list.length > 0) {
+        // Sort newest first
+        list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setRegisteredSchools(list);
+        localStorage.setItem("samvidhan_registered_schools", JSON.stringify(list));
+      } else {
+        loadRegisteredSchools();
+      }
+    }, (err) => {
+      console.warn("Firestore real-time subscription failed, using local storage fallback:", err);
+      loadRegisteredSchools();
+    });
+
+    window.addEventListener("storage", loadRegisteredSchools);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("storage", loadRegisteredSchools);
+    };
+  }, []);
+
+  // Google Drive CSV upload handler
+  const handleDriveBackup = async () => {
+    setDriveLoading(true);
+    let token = driveToken;
+    try {
+      if (!token) {
+        // Authenticate with Google Provider with Google Drive file scope
+        const provider = new GoogleAuthProvider();
+        provider.addScope("https://www.googleapis.com/auth/drive.file");
+        
+        playSfx(600, "sine", 0.15);
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential?.accessToken) {
+          throw new Error("गूगल ड्राइव प्रमाणीकरण एक्सेस टोकन प्राप्त करने में असमर्थ!");
+        }
+        token = credential.accessToken;
+        setDriveToken(token);
+      }
+
+      // Build CSV content formatted properly with UTF-8 BOM
+      const headers = ["S.No.", "School Name (विद्यालय का नाम)", "District (ज़िला)", "Block (ब्लॉक)", "Voter Count (वोटरों की संख्या)", "Registration Time (पंजीकरण समय)"];
+      const rows = registeredSchools.map((school, index) => [
+        index + 1,
+        `"${school.schoolName.replace(/"/g, '""')}"`,
+        `"${(school.districtName || 'जयपुर').replace(/"/g, '""')}"`,
+        `"${(school.blockName || 'सांगानेर').replace(/"/g, '""')}"`,
+        school.votersCount || 0,
+        `"${new Date(school.timestamp).toLocaleString('hi-IN')}"`
+      ]);
+      const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+      setMascotData({
+        mood: "thinking",
+        text: "ज़रा रुकिए, मैं गूगल ड्राइव पर 'Samvidhan Bal Chunav Records' फ़ोल्डर बना रहा हूँ और एक्सेल/CSV रिपोर्ट सहेज रहा हूँ... ☁️🔄"
+      });
+
+      // 1. Find or create folder "Samvidhan Bal Chunav Records"
+      let folderSearchRes = await fetch(
+        "https://www.googleapis.com/drive/v3/files?q=name='Samvidhan Bal Chunav Records' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!folderSearchRes.ok) {
+        throw new Error("फ़ोल्डर खोजने में त्रुटि: " + folderSearchRes.statusText);
+      }
+      let folderSearchData = await folderSearchRes.json();
+      let folderId = "";
+      if (folderSearchData.files && folderSearchData.files.length > 0) {
+        folderId = folderSearchData.files[0].id;
+      } else {
+        // Create folder
+        const createFolderRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: "Samvidhan Bal Chunav Records",
+            mimeType: "application/vnd.google-apps.folder",
+          }),
+        });
+        if (!createFolderRes.ok) {
+          throw new Error("फ़ोल्डर बनाने में त्रुटि: " + createFolderRes.statusText);
+        }
+        const createdFolder = await createFolderRes.json();
+        folderId = createdFolder.id;
+      }
+
+      if (!folderId) {
+        throw new Error("गूगल ड्राइव फ़ोल्डर स्थापित नहीं किया जा सका।");
+      }
+
+      // 2. Find if report file already exists
+      let fileSearchRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=name='registered_schools_report.csv' and '${folderId}' in parents and trashed=false`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      let fileSearchData = await fileSearchRes.json();
+      let fileId = "";
+      if (fileSearchData.files && fileSearchData.files.length > 0) {
+        const correctFile = fileSearchData.files.find((f: any) => f.name === "registered_schools_report.csv");
+        if (correctFile) fileId = correctFile.id;
+      }
+
+      // 3. Save / Update file on Drive
+      if (fileId) {
+        // Update file content
+        const updateRes = await fetch(
+          `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "text/csv; charset=utf-8",
+            },
+            body: "\ufeff" + csvContent,
+          }
+        );
+        if (!updateRes.ok) {
+          throw new Error("फ़ाइल अपडेट करने में विफल: " + updateRes.statusText);
+        }
+      } else {
+        // Create new file with Multipart upload
+        const metadata = {
+          name: "registered_schools_report.csv",
+          parents: [folderId],
+        };
+
+        const form = new FormData();
+        form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+        form.append("file", new Blob(["\ufeff" + csvContent], { type: "text/csv; charset=utf-8" }));
+
+        const createRes = await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          }
+        );
+        if (!createRes.ok) {
+          throw new Error("फ़ाइल अपलोड करने में विफल: " + createRes.statusText);
+        }
+      }
+
+      playSfx(880, "sine", 0.3);
+      setMascotData({
+        mood: "proud",
+        text: "अद्भुत कार्य! स्कूल रिकॉर्ड का डेटा आपके Google Drive के 'Samvidhan Bal Chunav Records' फ़ोल्डर में 'registered_schools_report.csv' (Excel compatible) के रूप में पूरी तरह सुरक्षित सेव कर दिया गया है! ☁️📄📗"
+      });
+
+    } catch (err: any) {
+      console.error("Google Drive Backup failure:", err);
+      playSfx(150, "sawtooth", 0.3);
+      setMascotData({
+        mood: "thinking",
+        text: "ओह! गूगल ड्राइव पर सहेजने में विफल। कृपया सुनिश्चित करें कि आपने आवश्यक अनुमतियां स्वीकार की हैं। त्रुटि: " + (err?.message || String(err))
+      });
+      setDriveToken(null);
+    } finally {
+      setDriveLoading(false);
+    }
+  };
 
   // Saved credentials in storage (or default: admin / admin)
   const [adminId, setAdminId] = useState("admin");
@@ -778,6 +991,17 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                 <User2 className="w-4 h-4" />
                 <span>डेवलपर प्रोफाइल अद्यतन (Developer Profiles)</span>
               </button>
+              <button
+                onClick={() => { playSfx(600); setAdminSubTab("schools"); }}
+                className={`px-5 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-2 cursor-pointer ${
+                  adminSubTab === "schools" 
+                    ? "bg-rose-500 text-white shadow-md scale-102" 
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <span className="text-sm">🏫</span>
+                <span>स्कूल पंजीयन रिकॉर्ड (School Registrations)</span>
+              </button>
             </div>
 
             {adminSubTab === "articles" && (
@@ -1095,86 +1319,85 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                       <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">सांकेतिक वीडियो प्रबंधन नियम</h4>
                     </div>
                     <ul className="text-[10.5px] font-bold space-y-2 list-disc pl-4 leading-relaxed">
-                      <li>आप प्रत्येक पाठ के लिए <strong>एकाधिक (Multiple)</strong> वीडियो लिंक जोड़ सकते हैं।</li>
-                      <li>सहेजने पर सामान्य यूट्यूब लिंक <span className="text-rose-650 font-mono">(/watch?v= या shorts/)</span> स्वतः सुरक्षित एम्बेड <span className="text-rose-650 font-mono">(/embed/)</span> प्रारूप में बदल जाएँगे।</li>
-                      <li>विद्यार्थियों को "सांकेतिक भाषा" टैब में ये सभी वीडियो वैकल्पिक गाइड के रूप में दिखाई देंगे।</li>
-                      <li>यदि किसी पाठ के सभी कस्टम वीडियो हटा दिए जाते हैं, तो वह स्वतः डिफ़ॉल्ट वीडियो पर रीसेट हो जाएगा।</li>
+                      <li>आप प्रत्येक पाठ के लिए <strong>एकाधिक (Multiple)</strong> वीडियो क्लिप्स जोड़ सकते हैं।</li>
+                      <li>जोड़े गए वीडियो बालकों को राष्ट्रगान/संविधान पाठ की मुख्य निर्वाचन स्क्रीन पर 'सांकेतिक भाषा' मॉड्यूल देखने में सक्षम करेंगे।</li>
+                      <li>सटीक लिंक ही दर्ज करें। यूट्यूब वीडियो के लिए 'Embed Share Link' या डायरेक्ट वीडियो लिंक सुरक्षित मानें जाते हैं।</li>
                     </ul>
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN: VIDEOS MANAGEMENT & FORM */}
+                {/* RIGHT COLUMN: ADD/EDIT VIDEOS FORM */}
                 <div className="lg:col-span-2 space-y-6 text-left">
-                  
-                  {/* FORM TO ADD OR EDIT VIDEO */}
-                  <div className="bg-white border-2 border-slate-150 rounded-3xl p-6 shadow-sm space-y-5">
-                    <div className="border-b border-slate-150 pb-3 flex items-center justify-between">
+                  <div className="bg-white border-2 border-slate-150 rounded-3xl p-6 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2 border-b border-slate-150 pb-3 justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="p-1 px-2.5 bg-rose-100 text-rose-800 font-extrabold rounded-full text-[10px]">
-                          {editingVideoId ? "संपादित करें (Edit Mode)" : "नया जोड़ें (Add Mode)"}
-                        </span>
-                        <h3 className="font-extrabold text-base text-slate-850">
-                          {editingVideoId ? "वीडियो जानकारी संपादित करें" : "नया वीडियो लिंक जोड़ें"}
+                        <Video className="w-5 h-5 text-rose-500" />
+                        <h3 className="font-black text-sm text-slate-850">
+                          {editingVideoId ? "संकेत वीडियो संपादित करें (Edit Video)" : "नया संकेत वीडियो जोड़ें (Add Video)"}
                         </h3>
                       </div>
+                      {editingVideoId && (
+                        <button
+                          type="button"
+                          onClick={handleCancelEditSignVideo}
+                          className="text-[10.5px] text-slate-400 hover:text-rose-600 font-bold"
+                        >
+                          संपादन रद्द करें ×
+                        </button>
+                      )}
                     </div>
 
                     <form onSubmit={handleAddOrUpdateSignVideo} className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10.5px] font-black text-slate-500 uppercase tracking-wider block">वीडियो का नाम / शीर्षक (Title)</label>
+                      {/* Video Title */}
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 block">
+                          वीडियो का शीर्षक (Video Clip Title):
+                        </label>
                         <input
                           type="text"
+                          required
                           value={signVideoTitleInput}
                           onChange={(e) => setSignVideoTitleInput(e.target.value)}
-                          placeholder="उदा: आसान भाषा में सांकेतिक अभिनय, अभ्यास वीडियो 2 आदि"
-                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-rose-500 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 focus:outline-none transition-all"
+                          placeholder="उदाहरण: संविधान की प्रस्तावना - भाग ३"
+                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-rose-400 rounded-2xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-bold"
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[10.5px] font-black text-slate-500 uppercase tracking-wider block">यूट्यूब वीडियो लिंक (YouTube Link)</label>
-                        <div className="relative">
-                          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-red-500">
-                            <Youtube className="w-4 h-4" />
-                          </span>
-                          <input
-                            type="text"
-                            value={signVideoUrlInput}
-                            onChange={(e) => setSignVideoUrlInput(e.target.value)}
-                            placeholder="https://www.youtube.com/watch?v=... या Shorts लिंक"
-                            className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-rose-500 rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono font-bold text-slate-800 focus:outline-none transition-all placeholder:text-slate-300"
-                          />
-                        </div>
+                      {/* Video URL */}
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1 block">
+                          यूट्यूब/इमेज का सीधा वीडियो कढ़ी लिंक (Video Share Link / URL):
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={signVideoUrlInput}
+                          onChange={(e) => setSignVideoUrlInput(e.target.value)}
+                          placeholder="https://www.youtube.com/embed/... या mp4 URL"
+                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-rose-400 rounded-2xl px-4 py-2.5 text-xs text-slate-800 font-mono focus:outline-none transition-all"
+                        />
+                        <span className="text-[9.5px] font-semibold text-slate-400 pl-1 block leading-normal">
+                          💡 यूट्यूब शेयर लिंक (उदा: <code>https://youtu.be/abc</code>) स्वतः अंतःस्थापित (Embed URL) में बदल दिए जाएंगे।
+                        </span>
                       </div>
 
                       {signVideoFeedback && (
-                        <p className="text-xs font-black text-rose-700 tracking-wide bg-rose-50 border border-rose-100 rounded-xl p-2.5 animate-pulse">
+                        <p className="text-[11px] font-black text-rose-600 text-left animate-pulse">
                           {signVideoFeedback}
                         </p>
                       )}
 
-                      <div className="flex gap-2 justify-end">
-                        {editingVideoId && (
-                          <button
-                            type="button"
-                            onClick={handleCancelEditSignVideo}
-                            className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-extrabold text-[11px] px-4 py-2.5 rounded-xl cursor-pointer transition"
-                          >
-                            रद्द करें
-                          </button>
-                        )}
+                      <div className="pt-2 flex items-center justify-end gap-3">
                         <button
                           type="submit"
-                          className="bg-rose-500 hover:bg-rose-600 text-white font-black text-[11px] px-5 py-2.5 rounded-xl border-b-2 border-rose-700 active:border-b-0 cursor-pointer transition flex items-center gap-1.5 active:scale-95"
+                          className="bg-rose-500 hover:bg-rose-600 text-white font-black text-xs px-5 py-2.5 rounded-2xl border-b-2 border-rose-700 active:border-b-0 cursor-pointer transition flex items-center gap-1.5"
                         >
-                          {editingVideoId ? <Save className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                          <span>{editingVideoId ? "बदलाव सहेजें" : "वीडियो जोड़ें"}</span>
+                          <Plus className="w-4 h-4" />
+                          <span>{editingVideoId ? "वीडियो अद्यतन करें (Update Video)" : "वीडियो क्लब में जोड़ें (Add Video)"}</span>
                         </button>
                       </div>
                     </form>
                   </div>
-
-                  {/* CURRENT VIDEOS LIST FOR THE SELECTED TERM */}
                   <div className="bg-white border-2 border-slate-150 rounded-3xl p-6 shadow-sm space-y-4">
                     <h3 className="font-extrabold text-sm text-slate-800 border-b border-slate-150 pb-3 flex items-center justify-between">
                       <span>वर्तमान में संलग्न वीडियो ({editingTermId === "samvidhan" ? "संविधान" : editingTermId === "adhikar" ? "अधिकार" : editingTermId === "samanta" ? "समानता" : editingTermId === "kartavya" ? "कर्तव्य" : editingTermId === "loktantra" ? "लोकतंत्र" : "भारत"})</span>
@@ -1292,17 +1515,18 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                         </div>
                       )}
                       <div>
-                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block">लाइव फोटो पूर्वावलोकन</span>
+                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block block">लाइव फोटो पूर्वावलोकन</span>
                         <p className="text-[10px] text-slate-600 font-bold leading-normal mt-0.5">
                           {gautamPhoto ? "गूगल ड्राइव लिंक से फोटो सफलतापूर्वक लोड कर ली गई है।" : "कोई फोटो सेट नहीं है, चन्द्र शेखर जी का डिफ़ॉल्ट वेक्टर दर्शाया जा रहा है।"}
                         </p>
                         {gautamPhoto && (
                           <button
+                            type="button"
                             onClick={() => {
                               setGautamPhoto("");
                               playSfx(400);
                             }}
-                            className="text-[9px] text-red-600 hover:underline font-black mt-1 block h-fit w-fit"
+                            className="text-[9px] text-red-655 hover:underline font-black mt-1 block h-fit w-fit"
                           >
                             वापस रिस्टोर करके वेक्टर लगाएं 🗑️
                           </button>
@@ -1310,7 +1534,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                       </div>
                     </div>
 
-                    {/* Email URL */}
+                    {/* Email ID */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest pl-1 block">संपर्क ईमेल (Email ID):</label>
                       <div className="relative">
@@ -1322,17 +1546,15 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                           value={gautamEmail}
                           onChange={(e) => setGautamEmail(e.target.value)}
                           placeholder="email@example.com"
-                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-amber-400 rounded-xl pl-9 pr-3 py-2 text-[11px] font-mono font-bold text-slate-800 focus:outline-none transition-all"
+                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-amber-400 rounded-xl pl-9 pr-3 py-2 text-[11px] font-mono font-bold text-slate-800 focus:outline-none transition-all placeholder:text-slate-300"
                         />
                       </div>
                     </div>
 
-                    {/* Social links details */}
+                    {/* Social profiles info */}
                     <div className="space-y-2.5 pt-2">
                       <span className="text-[10px] text-slate-400 font-black block uppercase tracking-wider">सोशल मीडिया कड़ियाँ (Social Profiles URL):</span>
-                      
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* GitHub */}
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1"><Github className="w-3.5 h-3.5" /> GitHub:</span>
                           <input
@@ -1342,19 +1564,15 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10.5px] font-mono"
                           />
                         </div>
-
-                        {/* LinkedIn */}
-                        <div className="space-y-1 flex flex-col justify-end">
+                        <div className="space-y-1">
                           <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1"><Linkedin className="w-3.5 h-3.5" /> LinkedIn:</span>
                           <input
                             type="text"
                             value={gautamLinkedin}
                             onChange={(e) => setGautamLinkedin(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10.5px] font-mono animate-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10.5px] font-mono"
                           />
                         </div>
-
-                        {/* YouTube */}
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1"><Youtube className="w-3.5 h-3.5" /> YouTube Channel:</span>
                           <input
@@ -1364,8 +1582,6 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10.5px] font-mono"
                           />
                         </div>
-
-                        {/* Portfolio */}
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1"><Globe className="w-3.5 h-3.5" /> Portfolio Site:</span>
                           <input
@@ -1387,6 +1603,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                       <span></span>
                     )}
                     <button
+                      type="button"
                       onClick={async () => {
                         const gp = gautamPhoto.trim();
                         const ge = gautamEmail.trim();
@@ -1463,44 +1680,6 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                       </span>
                     </div>
 
-                    {/* Kushagra Photo Live Preview */}
-                    <div className="bg-stone-50 border border-slate-200 p-3 rounded-2xl flex items-center gap-4">
-                      {kushagraPhoto ? (
-                        <div className="w-16 h-16 rounded-xl shadow-md border-2 border-slate-900 bg-white overflow-hidden shrink-0">
-                          <img 
-                            src={getDirectImageUrl(kushagraPhoto)} 
-                            alt="Preview Kushagra" 
-                            className="w-full h-full object-cover" 
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256";
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl border border-dashed border-slate-300 bg-slate-100 flex items-center justify-center shrink-0">
-                          <span className="text-[9px] text-slate-400 font-bold text-center p-1">डिफ़ॉल्ट वेक्टर सक्रिय</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block">लाइव फोटो पूर्वावलोकन</span>
-                        <p className="text-[10px] text-slate-600 font-bold leading-normal mt-0.5">
-                          {kushagraPhoto ? "गूगल ड्राइव लिंक से फोटो सफलतापूर्वक लोड कर ली गई है।" : "कोई फोटो सेट नहीं है, कुशाग्र जी का डिफ़ॉल्ट वेक्टर दर्शाया जा रहा है।"}
-                        </p>
-                        {kushagraPhoto && (
-                          <button
-                            onClick={() => {
-                              setKushagraPhoto("");
-                              playSfx(400);
-                            }}
-                            className="text-[9px] text-red-650 hover:underline font-black mt-1 block h-fit w-fit font-mono"
-                          >
-                            वापस रिस्टोर करके वेक्टर लगाएं 🗑️
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
                     {/* Email URL */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest pl-1 block">संपर्क ईमेल (Email ID):</label>
@@ -1568,10 +1747,48 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                         </div>
                       </div>
                     </div>
+
+                    {/* Kushagra Photo Live Preview */}
+                    <div className="bg-stone-50 border border-slate-200 p-3 rounded-2xl flex items-center gap-4">
+                      {kushagraPhoto ? (
+                        <div className="w-16 h-16 rounded-xl shadow-md border-2 border-slate-900 bg-white overflow-hidden shrink-0">
+                          <img 
+                            src={getDirectImageUrl(kushagraPhoto)} 
+                            alt="Preview Kushagra" 
+                            className="w-full h-full object-cover" 
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256";
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl border border-dashed border-slate-300 bg-slate-100 flex items-center justify-center shrink-0">
+                          <span className="text-[9px] text-slate-400 font-bold text-center p-1">डिफ़ॉल्ट वेक्टर सक्रिय</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block font-sans">लाइव फोटो पूर्वावलोकन</span>
+                        <p className="text-[10px] text-slate-600 font-bold leading-normal mt-0.5 font-sans">
+                          {kushagraPhoto ? "गूगल ड्राइव लिंक से फोटो सफलतापूर्वक लोड कर ली गई है।" : "कोई फोटो सेट नहीं है, कुशाग्र जी का डिफ़ॉल्ट वेक्टर दर्शाया जा रहा है।"}
+                        </p>
+                        {kushagraPhoto && (
+                          <button
+                            onClick={() => {
+                              setKushagraPhoto("");
+                              playSfx(400);
+                            }}
+                            className="text-[9px] text-red-650 hover:underline font-black mt-1 block h-fit w-fit font-mono"
+                          >
+                            वापस रिस्टोर करके वेक्टर लगाएं 🗑️
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Kushagra saving status */}
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="pt-4 border-t border-slate-150 flex items-center justify-between gap-2">
                     {kushagraSaved ? (
                       <span className="text-[10px] text-indigo-650 font-black tracking-wide animate-pulse">{kushagraSaved}</span>
                     ) : (
@@ -1620,6 +1837,196 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {adminSubTab === "schools" && (
+              /* SCHOOLS REGISTRATION WORKSPACE */
+              <div className="bg-white border-2 border-slate-150 rounded-3xl p-6 shadow-xs space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-150 pb-4">
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9.5px] bg-rose-100 text-rose-800 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
+                      🏫 स्कूल डेटाबेस केंद्र (School Database Hub)
+                    </span>
+                    <h3 className="text-lg font-black text-slate-800">
+                      पंजीकृत स्कूलों की सूची (Registered Schools List)
+                    </h3>
+                    <p className="text-xs text-slate-500 font-bold">
+                      अब तक कुल <strong>{registeredSchools.length} स्कूलों</strong> ने अपने निर्वाचन बूथ का डेटा पंजीकृत किया है।
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {/* DOWNLOAD CSV BUTTON */}
+                    <button
+                      onClick={() => {
+                        // Let's build CSV content
+                        // Columns: School Name, District Name, Block Name, Registered Date, Voter Count
+                        const headers = ["S.No.", "School Name (विद्यालय का नाम)", "District (ज़िला)", "Block (ब्लॉक)", "Voter Count (वोटरों की संख्या)", "Registration Time (पंजीकरण समय)"];
+                        const rows = registeredSchools.map((school, index) => [
+                          index + 1,
+                          `"${school.schoolName.replace(/"/g, '""')}"`,
+                          `"${(school.districtName || 'जयपुर').replace(/"/g, '""')}"`,
+                          `"${(school.blockName || 'सांगानेर').replace(/"/g, '""')}"`,
+                          school.votersCount || 0,
+                          `"${new Date(school.timestamp).toLocaleString('hi-IN')}"`
+                        ]);
+                        
+                        const csvContent = "\ufeff" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                        
+                        // Download trigger
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", `samvidhan_registered_schools_report.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        playSfx(880, "sine", 0.3);
+                        setMascotData({
+                          mood: "proud",
+                          text: "बधाई हो! सभी पंजीकृत स्कूलों का प्रामाणिक डेटा 'samvidhan_registered_schools_report.csv' फ़ाइल में सफलतापूर्वक डाउनलोड हो गया है। आप इसे सीधे एक्सेल या गूगल शीट्स में आयात कर सकते हैं! 📊📁"
+                        });
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2.5 rounded-xl border-b-2 border-emerald-800 active:border-b-0 cursor-pointer transition flex items-center gap-2 shadow-md active:scale-95 text-center"
+                    >
+                      <span className="text-sm">📥</span>
+                      <span>CSV फाइल डाउनलोड करें (Download CSV)</span>
+                    </button>
+
+                    {/* LINK TO GOOGLE SHEETS BUTTON */}
+                    <a
+                      href="https://sheets.new"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        playSfx(750, "sine", 0.1);
+                        setMascotData({
+                          mood: "happy",
+                          text: "मैंने आपके लिए एक नई खाली गूगल शीट खोली है! आप डाउनलोड की गई CSV फ़ाइल को वहाँ File -> Import करके जोड़ सकते हैं! 📗✨"
+                        });
+                      }}
+                      className="bg-green-700 hover:bg-green-800 text-white font-black text-xs px-4 py-2.5 rounded-xl border-b-2 border-green-900 active:border-b-0 cursor-pointer transition flex items-center gap-2 shadow-md active:scale-95 text-center"
+                    >
+                      <span className="text-sm">📗</span>
+                      <span>Google Sheet से लिंक / खोलें (Sheets.new)</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Database Actions info */}
+                <div className="bg-amber-50 border border-amber-250 p-4 rounded-2xl flex items-start gap-3 text-left">
+                  <span className="text-2xl mt-0.5">ℹ️</span>
+                  <div className="space-y-1">
+                    <h5 className="text-xs font-black text-amber-950">एक्सेल / गूगल शीट में इम्पोर्ट कैसे करें (CSV Integration Steps):</h5>
+                    <ol className="text-[10.5px] text-slate-700 font-bold list-decimal pl-4 space-y-1">
+                      <li>पहले ऊपर दिए गए <strong className="text-emerald-700">"CSV फाइल डाउनलोड करें"</strong> बटन पर क्लिक करके डेटा शीट सहेजें।</li>
+                      <li>अब <strong className="text-green-700">"Google Sheet से लिंक / खोलें"</strong> बटन दबाएँ जिससे नई गूगल शीट खुल जाएगी।</li>
+                      <li>गूगल शीट के मुख्य मेनू में <strong>File ➔ Import ➔ Upload</strong> पर जाएँ और डाउनलोड की गई CSV फ़ाइल को चुनकर 'Import Data' दबाएँ।</li>
+                      <li>सभी स्कूलों का डेटा (ज़िला, ब्लॉक, स्कूल का नाम, कुल पंजीकृत वोटर और दिनांक) व्यवस्थित रो और कॉलम में प्रदर्शित हो जाएगा!</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {/* Table displaying the list of schools */}
+                <div className="overflow-x-auto border-2 border-slate-200 rounded-2xl">
+                  <table className="w-full text-left border-collapse font-sans text-xs text-slate-800">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 text-[10.5px] font-black uppercase">
+                        <th className="p-3.5 text-center w-12">क्रमशः</th>
+                        <th className="p-3.5">📍 जिला</th>
+                        <th className="p-3.5">🧱 ब्लॉक</th>
+                        <th className="p-3.5">🏫 विद्यालय का नाम</th>
+                        <th className="p-3.5 text-center">🗳️ कुल पंजीकृत वोटर</th>
+                        <th className="p-3.5">📅 पंजीकरण का समय</th>
+                        <th className="p-3.5 text-center w-20">नियंत्रण</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registeredSchools.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-slate-550 font-bold italic">
+                            वर्तमान में कोई भी स्कूल पंजीकृत नहीं है। मतदान ईवीएम बूथ सेटअप में स्कूल और स्थान की जानकारी भरकर वोटर रजिस्ट्रेशन करें।
+                          </td>
+                        </tr>
+                      ) : (
+                        registeredSchools.map((school, idx) => (
+                          <tr key={idx} className="border-b border-slate-150 hover:bg-slate-50/70 font-semibold text-slate-800 transition">
+                            <td className="p-3 text-center text-slate-400 font-mono">{idx + 1}</td>
+                            <td className="p-3">
+                              <span className="bg-orange-50 border border-orange-200 text-orange-850 px-2.5 py-0.5 rounded-lg text-[10px] font-black">
+                                {school.districtName || "जयपुर"}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="bg-indigo-50 border border-indigo-150 text-indigo-850 px-2.5 py-0.5 rounded-lg text-[10px] font-black">
+                                {school.blockName || "सांगानेर"}
+                              </span>
+                            </td>
+                            <td className="p-3 font-extrabold text-slate-900">{school.schoolName}</td>
+                            <td className="p-3 text-center">
+                              <span className="bg-teal-50 border border-teal-200 text-teal-800 px-3 py-1 rounded-full font-black text-xs font-mono">
+                                {school.votersCount || 0} वोटर
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-500 font-medium text-[11px]">
+                              {new Date(school.timestamp).toLocaleString('hi-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => {
+                                  if (!confirm("क्या आप वाकई इस स्कूल का रिकॉर्ड हटाना चाहते हैं?")) return;
+                                  const filtered = registeredSchools.filter((_, sIdx) => sIdx !== idx);
+                                  setRegisteredSchools(filtered);
+                                  localStorage.setItem("samvidhan_registered_schools", JSON.stringify(filtered));
+                                  playSfx(440, "sine", 0.15);
+                                  setMascotData({
+                                    mood: "thinking",
+                                    text: "स्कूल रिकॉर्ड हटाया गया! 🗑️"
+                                  });
+                                }}
+                                className="text-rose-600 hover:text-rose-800 p-1 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition cursor-pointer"
+                                title="রেকর্ড ডিলিट"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* CLEAR ALL BUTTON */}
+                {registeredSchools.length > 0 && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        if (!confirm("चेतावनी: क्या आप सभी पंजीकृत स्कूलों की सूची पूरी तरह मिटाना चाहते हैं?")) return;
+                        setRegisteredSchools([]);
+                        localStorage.removeItem("samvidhan_registered_schools");
+                        playSfx(300, "sawtooth", 0.3);
+                        setMascotData({
+                          mood: "thinking",
+                          text: "डेटाबेस रीसेट! सभी पंजीकृत स्कूलों के रिकॉर्ड सफलतापूर्वक साफ़ कर दिए गए हैं।"
+                        });
+                      }}
+                      className="bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-300 font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1 active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>डेटाबेस खाली करें (Reset Database)</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
