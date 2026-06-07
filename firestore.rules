@@ -49,13 +49,13 @@ service cloud.firestore {
     // Developers Profile Document Shape Validator
     function isValidDevelopersSettings(data) {
       return data.keys().size() <= 16 &&
-             (!('gautam_photo' in data) || (data.gautam_photo is string && data.gautam_photo.size() <= 2048)) &&
+             (!('gautam_photo' in data) || (data.gautam_photo is string && data.gautam_photo.size() <= 500000)) &&
              (!('gautam_email' in data) || (data.gautam_email is string && data.gautam_email.size() <= 256)) &&
              (!('gautam_social_github' in data) || (data.gautam_social_github is string && data.gautam_social_github.size() <= 2048)) &&
              (!('gautam_social_linkedin' in data) || (data.gautam_social_linkedin is string && data.gautam_social_linkedin.size() <= 2048)) &&
              (!('gautam_social_youtube' in data) || (data.gautam_social_youtube is string && data.gautam_social_youtube.size() <= 2048)) &&
              (!('gautam_social_portfolio' in data) || (data.gautam_social_portfolio is string && data.gautam_social_portfolio.size() <= 2048)) &&
-             (!('kushagra_photo' in data) || (data.kushagra_photo is string && data.kushagra_photo.size() <= 2048)) &&
+             (!('kushagra_photo' in data) || (data.kushagra_photo is string && data.kushagra_photo.size() <= 500000)) &&
              (!('kushagra_email' in data) || (data.kushagra_email is string && data.kushagra_email.size() <= 256)) &&
              (!('kushagra_social_github' in data) || (data.kushagra_social_github is string && data.kushagra_social_github.size() <= 2048)) &&
              (!('kushagra_social_linkedin' in data) || (data.kushagra_social_linkedin is string && data.kushagra_social_linkedin.size() <= 2048)) &&

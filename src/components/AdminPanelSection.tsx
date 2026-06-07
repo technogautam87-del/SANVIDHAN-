@@ -284,6 +284,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
   const [gautamLinkedin, setGautamLinkedin] = useState("");
   const [gautamPortfolio, setGautamPortfolio] = useState("");
   const [gautamSaved, setGautamSaved] = useState("");
+  const [gautamFeedback, setGautamFeedback] = useState("");
 
   // Developer Kushagra state
   const [kushagraPhoto, setKushagraPhoto] = useState("");
@@ -293,6 +294,7 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
   const [kushagraLinkedin, setKushagraLinkedin] = useState("");
   const [kushagraPortfolio, setKushagraPortfolio] = useState("");
   const [kushagraSaved, setKushagraSaved] = useState("");
+  const [kushagraFeedback, setKushagraFeedback] = useState("");
 
   // Change credentials states
   const [newAdminId, setNewAdminId] = useState("");
@@ -582,6 +584,79 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
         console.error("Firebase sign_videos write failed:", err);
       }
     }
+  };
+
+  const handleImageFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setPhoto: (val: string) => void,
+    setFeedback: (msg: string) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setFeedback("कृपया केवल छवियों (Images) को ही अपलोड करें! ⚠️");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // Create canvas to downscale/compress
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 256;
+        const MAX_HEIGHT = 256;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Convert to highly optimized JPEG with 0.75 quality (usually 10-25KB)
+          const base64Data = canvas.toDataURL("image/jpeg", 0.75);
+          
+          if (base64Data.length > 500000) {
+            setFeedback("सॉरी! यह छवि अति विशाल है, कृपया कोई अन्य छोटी छवि चुनें। ⚠️");
+            return;
+          }
+
+          setPhoto(base64Data);
+          playSfx(880, "sine", 0.25);
+          setFeedback("छवि अपलोड और कंप्रेस की गई! 📸✨");
+          setTimeout(() => setFeedback(""), 4000);
+        }
+      };
+      
+      img.onerror = () => {
+        setFeedback("छवि लोड करने में त्रुटि हुई! ⚠️");
+      };
+
+      if (event.target?.result && typeof event.target.result === "string") {
+        img.src = event.target.result;
+      }
+    };
+
+    reader.onerror = () => {
+      setFeedback("फ़ाइल पढ़ने में त्रुटि! ⚠️");
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const convertToEmbedUrl = (url: string): string => {
@@ -1493,6 +1568,30 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                       <span className="text-[9px] text-slate-400 font-bold block leading-relaxed pl-1">
                         💡 Google Drive शेयर लिंक (जैसे: <code>https://drive.google.com/file/d/...</code>) अपने आप डायरेक्ट इमेज में बदल जाएगा।
                       </span>
+
+                      {/* Direct local image uploader */}
+                      <div className="pt-2">
+                        <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-wider block mb-1 pl-1">
+                          या सीधे स्थानीय डिवाइस से इमेज अपलोड करें:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <label className="bg-amber-50 hover:bg-amber-100 border border-dashed border-amber-300 hover:border-amber-400 text-amber-900 px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                            <span>फ़ोटो अपलोड करें (Upload Photo)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleImageFileChange(e, setGautamPhoto, setGautamFeedback)}
+                              className="hidden"
+                            />
+                          </label>
+                          {gautamFeedback && (
+                            <span className="text-[9.5px] font-bold text-amber-650 bg-amber-50 px-2 py-1 rounded-md animate-fade">
+                              {gautamFeedback}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Gautam Photo Live Preview */}
@@ -1678,6 +1777,30 @@ export default function AdminPanelSection({ setMascotData }: AdminPanelSectionPr
                       <span className="text-[9px] text-slate-400 font-bold block leading-relaxed pl-1">
                         💡 Google Drive शेयर लिंक (जैसे: <code>https://drive.google.com/file/d/...</code>) अपने आप डायरेक्ट इमेज में बदल जाएगा।
                       </span>
+
+                      {/* Direct local image uploader */}
+                      <div className="pt-2">
+                        <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-wider block mb-1 pl-1">
+                          या सीधे स्थानीय डिवाइस से इमेज अपलोड करें:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <label className="bg-indigo-50 hover:bg-indigo-100 border border-dashed border-indigo-300 hover:border-indigo-400 text-indigo-900 px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
+                            <span>फ़ोटो अपलोड करें (Upload Photo)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleImageFileChange(e, setKushagraPhoto, setKushagraFeedback)}
+                              className="hidden"
+                            />
+                          </label>
+                          {kushagraFeedback && (
+                            <span className="text-[9.5px] font-bold text-indigo-650 bg-indigo-50 px-2 py-1 rounded-md animate-fade">
+                              {kushagraFeedback}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Email URL */}
